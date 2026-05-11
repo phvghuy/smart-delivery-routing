@@ -1,7 +1,8 @@
-from fastapi import FastAPI, UploadFile
+from fastapi import FastAPI, UploadFile, Depends
 from fastapi.responses import HTMLResponse, JSONResponse
+from smart_delivery_routing.infrastructure.supabase_client import get_supabase_client
 
-from smart_delivery_routing.application.data_loader import LoadError, load_orders_from_bytes, load_vehicles_from_bytes
+from smart_delivery_routing.application.data_loader import LoadError, load_orders_from_bytes, load_vehicles_from_bytes, load_warehouses_from_bytes
 from smart_delivery_routing.application.use_cases import (
     OptimizeRoutesInput,
     OptimizeRoutesOutput,
@@ -10,9 +11,12 @@ from smart_delivery_routing.application.use_cases import (
 )
 from smart_delivery_routing.domain.models import Location, Order, Vehicle
 from smart_delivery_routing.infrastructure.distance import HaversineDistanceCalculator
+from smart_delivery_routing.infrastructure.repositories.supabase_orders import SupabaseOrderRepository
+from smart_delivery_routing.infrastructure.repositories.supabase_vehicles import SupabaseVehicleRepository
+from smart_delivery_routing.infrastructure.repositories.supabase_warehouses import SupabaseWarehouseRepository
 from smart_delivery_routing.application.solvers.nearest_neighbor import NearestNeighborSolver
 from smart_delivery_routing.application.solvers.ortools_solver import ORToolsSolver
-from smart_delivery_routing.domain.ports import RouteSolver
+from smart_delivery_routing.domain.ports import RouteSolver, OrderRepository, VehicleRepository, WarehouseRepository
 from .visualizer import build_map
 
 from .schemas import (
@@ -29,117 +33,58 @@ app = FastAPI(title="Smart Delivery Routing")
 
 _SOLVERS: list[tuple[str, RouteSolver]] = [
     ("nearest_neighbor", NearestNeighborSolver()),
-    ("ortools", ORToolsSolver(time_limit_seconds=10)),
+    # ("ortools", ORToolsSolver(time_limit_seconds=10)),
 ]
 _distance_calculator = HaversineDistanceCalculator()
 
 
-
-# _UI_HTML = """<!DOCTYPE html>
-# <html lang="en">
-# <head>
-#   <meta charset="UTF-8">
-#   <title>Smart Delivery Routing</title>
-#   <style>
-#     * { box-sizing: border-box; }
-#     body { font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; }
-#     header {
-#       padding: 12px 24px; background: #1e3a5f; color: white;
-#       display: flex; align-items: center; gap: 20px; flex-shrink: 0; flex-wrap: wrap;
-#     }
-#     header h1 { font-size: 1rem; margin: 0; white-space: nowrap; }
-#     .field { display: flex; flex-direction: column; gap: 2px; }
-#     .field label { font-size: 0.75rem; color: #aac; }
-#     .field input { font-size: 0.85rem; color: white; background: transparent; border: none; cursor: pointer; }
-#     button {
-#       background: #2563eb; color: white; border: none;
-#       padding: 8px 20px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;
-#     }
-#     button:disabled { background: #555; cursor: not-allowed; }
-#     button:hover:not(:disabled) { background: #1d4ed8; }
-#     #status { font-size: 0.85rem; color: #7dd3fc; }
-#     #map-frame { flex: 1; border: none; width: 100%; }
-#   </style>
-# </head>
-# <body>
-#   <header>
-#     <h1>Smart Delivery Routing</h1>
-#     <div class="field">
-#       <label>Orders CSV</label>
-#       <input type="file" id="orders-file" accept=".csv">
-#     </div>
-#     <div class="field">
-#       <label>Vehicles CSV</label>
-#       <input type="file" id="vehicles-file" accept=".csv">
-#     </div>
-#     <button id="btn" onclick="runOptimize()">Optimize &amp; View Map</button>
-#     <span id="status"></span>
-#   </header>
-
-#   <iframe id="map-frame" srcdoc="<p style='padding:24px;color:#888'>Upload both CSV files and click Optimize.</p>"></iframe>
-
-#   <script>
-#     async function runOptimize() {
-#       const ordersFile   = document.getElementById('orders-file').files[0];
-#       const vehiclesFile = document.getElementById('vehicles-file').files[0];
-#       const status = document.getElementById('status');
-#       const btn    = document.getElementById('btn');
-#       const frame  = document.getElementById('map-frame');
-
-#       if (!ordersFile || !vehiclesFile) {
-#         status.textContent = 'Please select both files.';
-#         return;
-#       }
-
-#       btn.disabled = true;
-#       status.textContent = 'Optimizing...';
-
-#       const form = new FormData();
-#       form.append('orders_file', ordersFile);
-#       form.append('vehicles_file', vehiclesFile);
-
-#       try {
-#         const res = await fetch('/optimize/map', { method: 'POST', body: form });
-#         if (!res.ok) {
-#           const err = await res.json().catch(() => ({}));
-#           status.textContent = 'Error: ' + (err.error || res.statusText);
-#           return;
-#         }
-#         frame.srcdoc = await res.text();
-#         status.textContent = 'Done.';
-#       } catch (e) {
-#         status.textContent = 'Request failed.';
-#       } finally {
-#         btn.disabled = false;
-#       }
-#     }
-#   </script>
-# </body>
-# </html>"""
+_supabase = get_supabase_client()
 
 
-# @app.get("/", response_class=HTMLResponse)
-# def index() -> HTMLResponse:
-#     return HTMLResponse(content=_UI_HTML)
+def get_order_repo() -> OrderRepository:
+    return SupabaseOrderRepository(_supabase)
+
+
+def get_vehicle_repo() -> VehicleRepository:
+    return SupabaseVehicleRepository(_supabase)
+
+
+def get_warehouse_repo() -> WarehouseRepository:
+    return SupabaseWarehouseRepository(_supabase)
+
+
+@app.post("/import/upload", status_code=201)
+async def import_upload(
+    orders_file: UploadFile,
+    vehicles_file: UploadFile,
+    warehouses_file: UploadFile,
+    order_repo: OrderRepository = Depends(get_order_repo),
+    vehicle_repo: VehicleRepository = Depends(get_vehicle_repo),
+    warehouse_repo: WarehouseRepository = Depends(get_warehouse_repo)
+) -> dict:
+    orders = load_orders_from_bytes(await orders_file.read(), source=orders_file.filename or "orders")
+    vehicles = load_vehicles_from_bytes(await vehicles_file.read(), source=vehicles_file.filename or "vehicles")
+    warehouses = load_warehouses_from_bytes(await warehouses_file.read(), source=warehouses_file.filename or "warehouses")
+    order_repo.save_orders(orders)
+    vehicle_repo.save_vehicles(vehicles)
+    warehouse_repo.save_warehouses(warehouses)
+    return {"imported_orders": len(orders), "imported_vehicles": len(vehicles), "imported_warehouses": len(warehouses)}
 
 
 @app.post("/optimize", response_model=OptimizeResponse)
-def optimize(request: OptimizeRequest) -> OptimizeResponse:
-    input = OptimizeRoutesInput(
-        orders=_to_orders(request),
-        vehicles=_to_vehicles(request),
-    )
-    return _run_all_solvers(input)
-
-
-@app.post("/optimize/upload", response_model=OptimizeResponse)
-async def optimize_upload(
-    orders_file: UploadFile,
-    vehicles_file: UploadFile,
+def optimize(
+    order_repo: OrderRepository = Depends(get_order_repo),
+    vehicle_repo: VehicleRepository = Depends(get_vehicle_repo),
+    warehouse_repo: WarehouseRepository = Depends(get_warehouse_repo)
 ) -> OptimizeResponse:
-    orders = load_orders_from_bytes(await orders_file.read(), source=orders_file.filename or "orders")
-    vehicles = load_vehicles_from_bytes(await vehicles_file.read(), source=vehicles_file.filename or "vehicles")
-    return _run_all_solvers(OptimizeRoutesInput(orders=orders, vehicles=vehicles))
+    orders = order_repo.get_pending_orders()
+    vehicles = vehicle_repo.get_vehicles()
+    warehouses = warehouse_repo.get_warehouses()
+    return _run_all_solvers(
+        OptimizeRoutesInput(orders=orders, vehicles=vehicles, warehouses=warehouses),
+        order_repo,
+        vehicle_repo,
+    )
 
 
 @app.exception_handler(ValidationFailed)
@@ -155,38 +100,16 @@ def handle_load_error(_, exc: LoadError) -> JSONResponse:
     return JSONResponse(status_code=400, content={"error": str(exc)})
 
 
-# --- Converters: schema → domain ---
-
-def _to_orders(request: OptimizeRequest) -> list[Order]:
-    return [
-        Order(
-            order_id=o.order_id,
-            location=Location(lat=o.lat, lng=o.lng),
-            weight=o.weight,
-            volume=o.volume,
-        )
-        for o in request.orders
-    ]
-
-
-def _to_vehicles(request: OptimizeRequest) -> list[Vehicle]:
-    return [
-        Vehicle(
-            vehicle_id=v.vehicle_id,
-            depot=Location(lat=v.start_lat, lng=v.start_lng),
-            max_weight=v.max_weight,
-            max_volume=v.max_volume,
-        )
-        for v in request.vehicles
-    ]
-
-
 # --- Orchestration ---
 
-def _run_all_solvers(input: OptimizeRoutesInput) -> OptimizeResponse:
+def _run_all_solvers(
+    input: OptimizeRoutesInput,
+    order_repo: OrderRepository,
+    vehicle_repo: VehicleRepository,
+) -> OptimizeResponse:
     return OptimizeResponse(
         results=[
-            _to_solver_result(solver_name, optimize_routes(input, solver, _distance_calculator))
+            _to_solver_result(solver_name, optimize_routes(input, solver, _distance_calculator, order_repo, vehicle_repo))
             for solver_name, solver in _SOLVERS
         ]
     )

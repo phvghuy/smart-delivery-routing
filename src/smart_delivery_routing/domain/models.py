@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from enum import Enum
 
 
 @dataclass(frozen=True)
@@ -8,17 +9,32 @@ class Location:
 
 
 @dataclass(frozen=True)
+class Warehouse:
+    warehouse_id: str
+    location: Location
+    name: str = ""
+
+
+class OrderStatus(str, Enum):
+    PENDING = "pending"
+    ASSIGNED = "assigned"
+    DELIVERED = "delivered"
+
+
+@dataclass
 class Order:
     order_id: str
+    warehouse_id: str
     location: Location
     weight: float
     volume: float
+    status: OrderStatus = OrderStatus.PENDING
 
 
-@dataclass(frozen=True)
+@dataclass
 class Vehicle:
     vehicle_id: str
-    depot: Location
+    current_warehouse_id: str
     max_weight: float
     max_volume: float
 

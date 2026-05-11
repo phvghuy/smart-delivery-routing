@@ -113,8 +113,6 @@ def validate_vehicles(vehicles: list[Vehicle]) -> list[ValidationError]:
     for vehicle in vehicles:
         candidates = [
             _check_vehicle_duplicate_id(vehicle, seen_ids),
-            _check_lat(vehicle.vehicle_id, "depot.lat", vehicle.depot.lat),
-            _check_lng(vehicle.vehicle_id, "depot.lng", vehicle.depot.lng),
             _check_vehicle_max_weight_positive(vehicle),
             _check_vehicle_max_volume_positive(vehicle),
         ]

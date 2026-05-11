@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from smart_delivery_routing.domain.models import Location, Order, Vehicle
+from smart_delivery_routing.domain.models import Location, Order, Warehouse, Vehicle
 
 
 @dataclass(frozen=True)
@@ -16,8 +16,9 @@ class LoadError(Exception):
         return f"[{self.source}] {self.reason}"
 
 
-_ORDER_COLUMNS = {"order_id", "lat", "lng", "weight", "volume"}
-_VEHICLE_COLUMNS = {"vehicle_id", "max_weight", "max_volume", "start_lat", "start_lng"}
+_ORDER_COLUMNS = {"order_id", "warehouse_id", "lat", "lng", "weight", "volume"}
+_VEHICLE_COLUMNS = {"vehicle_id", "warehouse_id", "max_weight", "max_volume"}
+_WAREHOUSE_COLUMNS = {"warehouse_id", "name", "lat", "lng"}
 
 
 def load_orders(path: str | Path) -> list[Order]:
@@ -40,10 +41,32 @@ def load_vehicles_from_bytes(content: bytes, source: str = "vehicles") -> list[V
     return vehicles_from_dataframe(df)
 
 
+def load_warehouses(path: str | Path) -> list[Warehouse]:
+    df = _read_csv(path, _WAREHOUSE_COLUMNS)
+    return warehouses_from_dataframe(df)
+
+
+def load_warehouses_from_bytes(content: bytes, source: str = "warehouses") -> list[Warehouse]:
+    df = _parse_csv(content, source, _WAREHOUSE_COLUMNS)
+    return warehouses_from_dataframe(df)
+
+
+def warehouses_from_dataframe(df: pd.DataFrame) -> list[Warehouse]:
+    return [
+        Warehouse(
+            warehouse_id=str(row.warehouse_id),
+            location=Location(lat=float(row.lat), lng=float(row.lng)),
+            name=str(row.name),
+        )
+        for row in df.itertuples(index=False)
+    ]
+
+
 def orders_from_dataframe(df: pd.DataFrame) -> list[Order]:
     return [
         Order(
             order_id=str(row.order_id),
+            warehouse_id=str(row.warehouse_id),
             location=Location(lat=float(row.lat), lng=float(row.lng)),
             weight=float(row.weight),
             volume=float(row.volume),
@@ -56,7 +79,7 @@ def vehicles_from_dataframe(df: pd.DataFrame) -> list[Vehicle]:
     return [
         Vehicle(
             vehicle_id=str(row.vehicle_id),
-            depot=Location(lat=float(row.start_lat), lng=float(row.start_lng)),
+            current_warehouse_id=str(row.warehouse_id),
             max_weight=float(row.max_weight),
             max_volume=float(row.max_volume),
         )

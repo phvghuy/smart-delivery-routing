@@ -2,7 +2,7 @@ from pathlib import Path
 
 import folium
 
-from smart_delivery_routing.domain.models import Order, RoutingResult, Vehicle
+from smart_delivery_routing.domain.models import Order, RoutingResult, Warehouse
 
 _COLORS = [
     "blue", "red", "green", "purple", "orange",
@@ -13,33 +13,62 @@ _COLORS = [
 def build_map(
     result: RoutingResult,
     orders: list[Order],
-    vehicles: list[Vehicle],
+    warehouses: list[Warehouse],
+    vehicle_origins: dict[str, str],
+    vehicle_destinations: dict[str, str],
 ) -> folium.Map:
     order_by_id = {o.order_id: o for o in orders}
-    vehicle_by_id = {v.vehicle_id: v for v in vehicles}
-    depot = vehicles[0].depot
+    warehouse_by_id = {w.warehouse_id: w for w in warehouses}
 
-    fmap = folium.Map(location=[depot.lat, depot.lng], zoom_start=12)
-    _add_depot_marker(fmap, depot)
+    center = warehouses[0].location if warehouses else None
+    fmap = folium.Map(
+        location=[center.lat, center.lng] if center else [10.8, 106.7],
+        zoom_start=12,
+    )
+
+    for wh in warehouses:
+        _add_warehouse_marker(fmap, wh)
 
     for idx, route in enumerate(result.routes):
+        if not route.stops:
+            continue
+
         color = _COLORS[idx % len(_COLORS)]
         group = folium.FeatureGroup(name=f"{route.vehicle_id} ({len(route.stops)} stops)", show=True)
 
-        coords = [[depot.lat, depot.lng]]
-        for stop in route.stops:
-            order = order_by_id[stop.order_id]
-            coords.append([stop.location.lat, stop.location.lng])
-            _add_stop_marker(group, order, color)
-        coords.append([depot.lat, depot.lng])  # return to depot
+        origin_wh = warehouse_by_id.get(vehicle_origins.get(route.vehicle_id, ""))
+        dest_wh = warehouse_by_id.get(vehicle_destinations.get(route.vehicle_id, ""))
 
-        folium.PolyLine(
-            locations=coords,
-            color=color,
-            weight=2.5,
-            opacity=0.8,
-            tooltip=f"{route.vehicle_id} — {route.total_distance:.1f} km",
-        ).add_to(group)
+        stop_coords = [[s.location.lat, s.location.lng] for s in route.stops]
+
+        # Origin warehouse → first stop (nét đứt dài = xuất phát)
+        if origin_wh:
+            o = origin_wh.location
+            folium.PolyLine(
+                locations=[[o.lat, o.lng], stop_coords[0]],
+                color=color, weight=2.5, opacity=0.75, dash_array="12 6",
+                tooltip=f"{route.vehicle_id}: depart from {origin_wh.name or origin_wh.warehouse_id}",
+            ).add_to(group)
+
+        # stop → stop
+        if len(stop_coords) > 1:
+            folium.PolyLine(
+                locations=stop_coords,
+                color=color, weight=2.5, opacity=0.8,
+                tooltip=f"{route.vehicle_id} — {route.total_distance:.1f} km",
+            ).add_to(group)
+
+        # Last stop → destination warehouse (nét chấm ngắn = về kho)
+        if dest_wh:
+            d = dest_wh.location
+            folium.PolyLine(
+                locations=[stop_coords[-1], [d.lat, d.lng]],
+                color=color, weight=2, opacity=0.5, dash_array="3 8",
+                tooltip=f"{route.vehicle_id}: return to {dest_wh.name or dest_wh.warehouse_id}",
+            ).add_to(group)
+
+        for stop in route.stops:
+            _add_stop_marker(group, order_by_id[stop.order_id], color)
 
         group.add_to(fmap)
 
@@ -53,11 +82,11 @@ def save_map(fmap: folium.Map, path: str | Path) -> None:
     fmap.save(str(path))
 
 
-def _add_depot_marker(fmap: folium.Map, depot) -> None:
+def _add_warehouse_marker(fmap: folium.Map, warehouse: Warehouse) -> None:
     folium.Marker(
-        location=[depot.lat, depot.lng],
-        popup="Depot",
-        tooltip="Depot",
+        location=[warehouse.location.lat, warehouse.location.lng],
+        popup=f"<b>{warehouse.name or warehouse.warehouse_id}</b>",
+        tooltip=warehouse.name or warehouse.warehouse_id,
         icon=folium.Icon(color="black", icon="home", prefix="fa"),
     ).add_to(fmap)
 
@@ -95,7 +124,10 @@ def _add_unassigned_markers(
             color="gray",
             fill=True,
             fill_opacity=0.5,
-            popup=folium.Popup(f"<b>{order_id}</b><br>Weight: {order.weight} kg<br>Volume: {order.volume} m³", max_width=200),
+            popup=folium.Popup(
+                f"<b>{order_id}</b><br>Weight: {order.weight} kg<br>Volume: {order.volume} m³",
+                max_width=200,
+            ),
             tooltip=f"{order_id} (unassigned)",
         ).add_to(group)
     group.add_to(fmap)

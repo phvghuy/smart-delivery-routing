@@ -1,4 +1,4 @@
-from smart_delivery_routing.domain.models import Order, Route, RoutingResult, Stop, Vehicle
+from smart_delivery_routing.domain.models import Order, Route, RoutingResult, Stop, Vehicle, Warehouse
 from smart_delivery_routing.domain.ports import RouteSolver
 
 
@@ -7,12 +7,13 @@ class NearestNeighborSolver(RouteSolver):
         self,
         orders: list[Order],
         vehicles: list[Vehicle],
+        warehouses: list[Warehouse],
         distance_matrix: list[list[float]],
     ) -> RoutingResult:
-        # distance_matrix layout: index 0 = depot, index 1..N = orders (same order as `orders`)
         unassigned = list(orders)
         routes: list[Route] = []
-        order_to_idx = {o.order_id: i + 1 for i, o in enumerate(orders)}
+        warehouse_to_idx = {w.warehouse_id: i for i, w in enumerate(warehouses)}
+        order_to_idx = {o.order_id: i + len(warehouses) for i, o in enumerate(orders)}
 
         for vehicle in vehicles:
             if not unassigned:
@@ -21,7 +22,7 @@ class NearestNeighborSolver(RouteSolver):
             route = Route(vehicle_id=vehicle.vehicle_id)
             remaining_weight = vehicle.max_weight
             remaining_volume = vehicle.max_volume
-            current_index = 0  # depot
+            current_index = warehouse_to_idx[vehicle.current_warehouse_id]
 
             while unassigned:
                 candidate = _nearest_fitting(
@@ -44,7 +45,14 @@ class NearestNeighborSolver(RouteSolver):
                 unassigned.remove(candidate)
 
             if route.stops:
-                route.total_distance += distance_matrix[current_index][0]  # return to depot
+                vehicle.current_warehouse_id = _nearest_warehouse_with_orders(
+                    current_index=current_index,
+                    warehouses=warehouses,
+                    warehouse_to_idx=warehouse_to_idx,
+                    distance_matrix=distance_matrix,
+                    unassigned=unassigned,
+                ).warehouse_id
+                route.total_distance += distance_matrix[current_index][warehouse_to_idx[vehicle.current_warehouse_id]]
                 routes.append(route)
 
         return RoutingResult(
@@ -76,3 +84,14 @@ def _nearest_fitting(
             best = order
 
     return best
+
+def _nearest_warehouse_with_orders(
+    current_index: int,
+    warehouses: list[Warehouse],
+    warehouse_to_idx: dict[str, int],
+    distance_matrix: list[list[float]],
+    unassigned: list[Order],
+) -> Warehouse:
+    warehouses_with_orders = {o.warehouse_id for o in unassigned}
+    candidates = [w for w in warehouses if w.warehouse_id in warehouses_with_orders] or warehouses
+    return min(candidates, key=lambda w: distance_matrix[current_index][warehouse_to_idx[w.warehouse_id]])
