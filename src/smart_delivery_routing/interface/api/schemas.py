@@ -1,30 +1,19 @@
 from pydantic import BaseModel, Field
 
 
-# --- Request ---
+# --- Auth ---
 
-class OrderRequest(BaseModel):
-    order_id: str
-    lat: float = Field(ge=-90, le=90)
-    lng: float = Field(ge=-180, le=180)
-    weight: float = Field(gt=0)
-    volume: float = Field(gt=0)
+class LoginRequest(BaseModel):
+    email: str
+    password: str
 
 
-class VehicleRequest(BaseModel):
-    vehicle_id: str
-    max_weight: float = Field(gt=0)
-    max_volume: float = Field(gt=0)
-    start_lat: float = Field(ge=-90, le=90)
-    start_lng: float = Field(ge=-180, le=180)
+class LoginResponse(BaseModel):
+    access_token: str
+    role: str
 
 
-class OptimizeRequest(BaseModel):
-    orders: list[OrderRequest] = Field(min_length=1)
-    vehicles: list[VehicleRequest] = Field(min_length=1)
-
-
-# --- Response ---
+# --- Routing ---
 
 class StopResponse(BaseModel):
     order_id: str
