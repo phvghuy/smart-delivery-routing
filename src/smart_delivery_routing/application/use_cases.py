@@ -25,6 +25,10 @@ class ValidationFailed(Exception):
         self.errors = errors
         super().__init__(f"{len(errors)} validation error(s)")
 
+    
+class NoPendingOrders(Exception):
+    pass
+
 
 def optimize_routes(
     input: OptimizeRoutesInput,
@@ -34,6 +38,10 @@ def optimize_routes(
     vehicle_repo: VehicleRepository,
 ) -> OptimizeRoutesOutput:
     _validate(input.orders, input.vehicles)
+    pending_orders = [o for o in input.orders if o.status == "pending"]
+    if not pending_orders:
+        raise NoPendingOrders
+
     distance_matrix = _build_distance_matrix(input.orders, input.warehouses, distance_calculator)
     result = solver.solve(input.orders, input.vehicles, input.warehouses, distance_matrix)
     kpi = compute_kpi(result, input.orders, input.vehicles)

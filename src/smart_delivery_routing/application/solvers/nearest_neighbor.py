@@ -10,7 +10,7 @@ class NearestNeighborSolver(RouteSolver):
         warehouses: list[Warehouse],
         distance_matrix: list[list[float]],
     ) -> RoutingResult:
-        unassigned = list(orders)
+        unassigned = [o for o in orders if o.status == "pending"]
         routes: list[Route] = []
         warehouse_to_idx = {w.warehouse_id: i for i, w in enumerate(warehouses)}
         order_to_idx = {o.order_id: i + len(warehouses) for i, o in enumerate(orders)}

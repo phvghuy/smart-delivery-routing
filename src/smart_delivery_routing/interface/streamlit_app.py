@@ -14,20 +14,21 @@ from smart_delivery_routing.application.use_cases import (
     OptimizeRoutesInput,
     OptimizeRoutesOutput,
     ValidationFailed,
+    NoPendingOrders,
     optimize_routes,
 )
-from smart_delivery_routing.infrastructure.distance import HaversineDistanceCalculator
-from smart_delivery_routing.infrastructure.osrm import get_road_geometry
-from smart_delivery_routing.infrastructure.repositories.supabase_orders import SupabaseOrderRepository
-from smart_delivery_routing.infrastructure.repositories.supabase_vehicles import SupabaseVehicleRepository
-from smart_delivery_routing.infrastructure.repositories.supabase_warehouses import SupabaseWarehouseRepository
-from smart_delivery_routing.infrastructure.supabase_client import get_supabase_client
+from smart_delivery_routing.infrastructure.osrm.distance import OSRMDistanceCalculator
+from smart_delivery_routing.infrastructure.osrm.geometry import get_road_geometry
+from smart_delivery_routing.infrastructure.supabase.client import get_supabase_client
+from smart_delivery_routing.infrastructure.supabase.repositories.orders import SupabaseOrderRepository
+from smart_delivery_routing.infrastructure.supabase.repositories.vehicles import SupabaseVehicleRepository
+from smart_delivery_routing.infrastructure.supabase.repositories.warehouses import SupabaseWarehouseRepository
 from smart_delivery_routing.interface.visualizer import build_map
 
 st.set_page_config(page_title="Smart Delivery Routing", page_icon="🚚", layout="wide")
 
 _solver = NearestNeighborSolver()
-_distance_calculator = HaversineDistanceCalculator()
+_distance_calculator = OSRMDistanceCalculator(base_url="http://localhost:5000")
 
 
 def _get_repos():
@@ -103,13 +104,11 @@ def _import(orders_file, vehicles_file, warehouses_file) -> None:
 def _optimize() -> None:
     order_repo, vehicle_repo, warehouse_repo = _get_repos()
 
-    orders = order_repo.get_pending_orders()
+    orders = order_repo.get_orders()
     vehicles = vehicle_repo.get_vehicles()
     warehouses = warehouse_repo.get_warehouses()
 
-    if not orders:
-        st.sidebar.warning("No pending orders left.")
-        return
+        
 
     vehicle_origins = {v.vehicle_id: v.current_warehouse_id for v in vehicles}
 
@@ -125,6 +124,9 @@ def _optimize() -> None:
         except ValidationFailed as e:
             for err in e.errors:
                 st.sidebar.error(f"[{err.entity_id}] {err.field}: {err.reason}")
+            return
+        except NoPendingOrders:
+            st.sidebar.warning("No pending orders left.")
             return
 
     vehicle_destinations = {v.vehicle_id: v.current_warehouse_id for v in vehicles}

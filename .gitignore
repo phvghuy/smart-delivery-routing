@@ -10,3 +10,5 @@ wheels/
 .venv
 
 .env
+
+src/smart_delivery_routing/infrastructure/osrm/data/

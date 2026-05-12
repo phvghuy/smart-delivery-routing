@@ -1,6 +1,8 @@
 from supabase import Client
+
 from smart_delivery_routing.domain.models import Location, Order, OrderStatus
 from smart_delivery_routing.domain.ports import OrderRepository
+
 
 class SupabaseOrderRepository(OrderRepository):
     def __init__(self, client: Client) -> None:
@@ -25,6 +27,20 @@ class SupabaseOrderRepository(OrderRepository):
         if not order_ids:
             return
         self._client.table("orders").update({"status": OrderStatus.ASSIGNED.value}).in_("order_id", order_ids).execute()
+
+    def get_orders(self) -> list[Order]:
+        response = self._client.table("orders").select("*").order("order_id").execute()
+        return [
+            Order(
+                order_id=row["order_id"],
+                warehouse_id=row["warehouse_id"],
+                location=Location(lat=row["dest_lat"], lng=row["dest_lng"]),
+                weight=row["weight"],
+                volume=row["volume"],
+                status=OrderStatus(row["status"]),
+            )
+            for row in response.data
+        ]
 
     def get_pending_orders(self) -> list[Order]:
         response = (

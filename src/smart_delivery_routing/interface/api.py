@@ -1,7 +1,5 @@
 from fastapi import FastAPI, UploadFile, Depends
 from fastapi.responses import HTMLResponse, JSONResponse
-from smart_delivery_routing.infrastructure.supabase_client import get_supabase_client
-
 from smart_delivery_routing.application.data_loader import LoadError, load_orders_from_bytes, load_vehicles_from_bytes, load_warehouses_from_bytes
 from smart_delivery_routing.application.use_cases import (
     OptimizeRoutesInput,
@@ -10,10 +8,11 @@ from smart_delivery_routing.application.use_cases import (
     optimize_routes,
 )
 from smart_delivery_routing.domain.models import Location, Order, Vehicle
-from smart_delivery_routing.infrastructure.distance import HaversineDistanceCalculator
-from smart_delivery_routing.infrastructure.repositories.supabase_orders import SupabaseOrderRepository
-from smart_delivery_routing.infrastructure.repositories.supabase_vehicles import SupabaseVehicleRepository
-from smart_delivery_routing.infrastructure.repositories.supabase_warehouses import SupabaseWarehouseRepository
+from smart_delivery_routing.infrastructure.osrm.distance import OSRMDistanceCalculator
+from smart_delivery_routing.infrastructure.supabase.client import get_supabase_client
+from smart_delivery_routing.infrastructure.supabase.repositories.orders import SupabaseOrderRepository
+from smart_delivery_routing.infrastructure.supabase.repositories.vehicles import SupabaseVehicleRepository
+from smart_delivery_routing.infrastructure.supabase.repositories.warehouses import SupabaseWarehouseRepository
 from smart_delivery_routing.application.solvers.nearest_neighbor import NearestNeighborSolver
 from smart_delivery_routing.application.solvers.ortools_solver import ORToolsSolver
 from smart_delivery_routing.domain.ports import RouteSolver, OrderRepository, VehicleRepository, WarehouseRepository
@@ -35,7 +34,7 @@ _SOLVERS: list[tuple[str, RouteSolver]] = [
     ("nearest_neighbor", NearestNeighborSolver()),
     # ("ortools", ORToolsSolver(time_limit_seconds=10)),
 ]
-_distance_calculator = HaversineDistanceCalculator()
+_distance_calculator = OSRMDistanceCalculator()
 
 
 _supabase = get_supabase_client()

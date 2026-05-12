@@ -26,6 +26,9 @@ class OrderRepository(ABC):
     def save_orders(self, orders: list[Order]) -> None: ...
 
     @abstractmethod
+    def get_orders(self) -> list[Order]: ...
+
+    @abstractmethod
     def get_pending_orders(self) -> list[Order]: ...
 
     @abstractmethod

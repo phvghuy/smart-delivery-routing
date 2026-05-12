@@ -1,6 +1,6 @@
 import httpx
 
-_OSRM_BASE = "http://router.project-osrm.org/route/v1/driving"
+_OSRM_BASE = "http://router.project-osrm.org"
 _cache: dict[tuple, list[list[float]]] = {}
 
 
@@ -20,13 +20,12 @@ def get_road_geometry(waypoints: list[tuple[float, float]]) -> list[list[float]]
     coords_str = ";".join(f"{lng},{lat}" for lat, lng in waypoints)
     try:
         resp = httpx.get(
-            f"{_OSRM_BASE}/{coords_str}",
+            f"{_OSRM_BASE}/route/v1/driving/{coords_str}",
             params={"overview": "full", "geometries": "geojson"},
             timeout=5.0,
         )
         data = resp.json()
         if data.get("code") == "Ok":
-            # GeoJSON uses [lng, lat] — convert to [lat, lng] for folium
             result = [[c[1], c[0]] for c in data["routes"][0]["geometry"]["coordinates"]]
             _cache[key] = result
             return result
