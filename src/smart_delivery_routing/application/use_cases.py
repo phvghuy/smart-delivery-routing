@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from smart_delivery_routing.domain.models import Order, RoutingResult, Vehicle, Warehouse
+from smart_delivery_routing.domain.models import Order, RoutingResult, Vehicle, Warehouse, OrderStatus
 from smart_delivery_routing.domain.ports import DistanceCalculator, OrderRepository, RouteSolver, VehicleRepository
 from smart_delivery_routing.domain.validators import ValidationError, validate_orders, validate_vehicles
 
@@ -38,7 +38,7 @@ def optimize_routes(
     vehicle_repo: VehicleRepository,
 ) -> OptimizeRoutesOutput:
     _validate(input.orders, input.vehicles)
-    pending_orders = [o for o in input.orders if o.status == "pending"]
+    pending_orders = [o for o in input.orders if o.status == OrderStatus.PENDING]
     if not pending_orders:
         raise NoPendingOrders("No pending orders left.")
 

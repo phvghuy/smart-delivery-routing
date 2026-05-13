@@ -1,4 +1,4 @@
-from smart_delivery_routing.domain.models import Order, Route, RoutingResult, Stop, Vehicle, Warehouse
+from smart_delivery_routing.domain.models import Order, Route, RoutingResult, Stop, Vehicle, Warehouse, OrderStatus
 from smart_delivery_routing.domain.ports import RouteSolver
 
 
@@ -10,7 +10,7 @@ class NearestNeighborSolver(RouteSolver):
         warehouses: list[Warehouse],
         distance_matrix: list[list[float]],
     ) -> RoutingResult:
-        unassigned = [o for o in orders if o.status == "pending"]
+        unassigned = [o for o in orders if o.status == OrderStatus.PENDING]
         routes: list[Route] = []
         warehouse_to_idx = {w.warehouse_id: i for i, w in enumerate(warehouses)}
         order_to_idx = {o.order_id: i + len(warehouses) for i, o in enumerate(orders)}

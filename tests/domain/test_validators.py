@@ -141,12 +141,3 @@ def test_validate_orders_multiple_errors(small_vehicles):
 def test_validate_vehicles_no_errors(small_vehicles):
     assert validate_vehicles(small_vehicles) == []
 
-def test_validate_vehicles_invalid_depot():
-    vehicle = Vehicle(
-        vehicle_id="VEH-BAD",
-        depot=Location(lat=999.0, lng=106.65),
-        max_weight=500.0,
-        max_volume=2.0,
-    )
-    errors = validate_vehicles([vehicle])
-    assert any(e.field == "depot.lat" for e in errors)

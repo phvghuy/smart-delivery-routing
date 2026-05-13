@@ -1,12 +1,11 @@
 import pytest
 
 from smart_delivery_routing.domain.models import Location
-from smart_delivery_routing.infrastructure.distance import HaversineDistanceCalculator, _haversine_matrix
-import numpy as np
+from smart_delivery_routing.infrastructure.haversine import HaversineDistanceCalculator
 
 HANOI = Location(lat=21.0285, lng=105.8542)
 HCMC = Location(lat=10.8231, lng=106.6297)
-KNOWN_HANOI_HCMC_KM = 1137.0  # ~1137 km
+KNOWN_HANOI_HCMC_KM = 1137.0
 
 calculator = HaversineDistanceCalculator()
 
@@ -24,7 +23,7 @@ def test_known_distance_hanoi_hcmc():
 
 
 def test_matrix_is_symmetric():
-    locations = [HANOI, HCMC, Location(lat=16.0678, lng=108.2208)]  # Da Nang
+    locations = [HANOI, HCMC, Location(lat=16.0678, lng=108.2208)]
     matrix = calculator.compute_matrix(locations)
     n = len(locations)
     for i in range(n):
@@ -47,5 +46,4 @@ def test_single_location_returns_1x1_zero():
 def test_triangle_inequality():
     da_nang = Location(lat=16.0678, lng=108.2208)
     matrix = calculator.compute_matrix([HANOI, da_nang, HCMC])
-    # Hanoi→HCMC ≤ Hanoi→DaNang + DaNang→HCMC
     assert matrix[0][2] <= matrix[0][1] + matrix[1][2] + 1e-6

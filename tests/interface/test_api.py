@@ -3,6 +3,8 @@ import csv
 import pytest
 from fastapi.testclient import TestClient
 
+pytestmark = pytest.mark.integration
+
 from smart_delivery_routing.interface.api import app
 
 client = TestClient(app)
