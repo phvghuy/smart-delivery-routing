@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from .models import Order, Vehicle
+from .models import Order, Vehicle, Warehouse
 
 
 @dataclass(frozen=True)
@@ -83,6 +83,37 @@ def _check_vehicle_max_volume_positive(vehicle: Vehicle) -> ValidationError | No
 
 
 # --- Public validators ---
+
+def validate_vehicle_fields(vehicle: Vehicle) -> list[ValidationError]:
+    candidates = [
+        _check_vehicle_max_weight_positive(vehicle),
+        _check_vehicle_max_volume_positive(vehicle),
+    ]
+    return [e for e in candidates if e is not None]
+
+
+def validate_warehouse_fields(warehouse: Warehouse) -> list[ValidationError]:
+    errors: list[ValidationError] = []
+    if not warehouse.name.strip():
+        errors.append(ValidationError(warehouse.warehouse_id, "name", "name must not be empty"))
+    candidates = [
+        _check_lat(warehouse.warehouse_id, "lat", warehouse.location.lat),
+        _check_lng(warehouse.warehouse_id, "lng", warehouse.location.lng),
+    ]
+    errors.extend(e for e in candidates if e is not None)
+    return errors
+
+
+def validate_order_fields(order: Order) -> list[ValidationError]:
+    """Validates a single order's own fields, without vehicle context."""
+    candidates = [
+        _check_lat(order.order_id, "lat", order.location.lat),
+        _check_lng(order.order_id, "lng", order.location.lng),
+        _check_order_weight_positive(order),
+        _check_order_volume_positive(order),
+    ]
+    return [e for e in candidates if e is not None]
+
 
 def validate_orders(orders: list[Order], vehicles: list[Vehicle]) -> list[ValidationError]:
     errors: list[ValidationError] = []

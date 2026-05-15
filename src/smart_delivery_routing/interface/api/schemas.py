@@ -25,6 +25,7 @@ class RouteResponse(BaseModel):
     vehicle_id: str
     stops: list[StopResponse]
     total_distance_km: float
+    geometry: list[list[float]] = []  # [[lat, lng], ...] following actual roads
 
 
 class VehicleKPIResponse(BaseModel):
@@ -64,3 +65,77 @@ class JobStatusResponse(BaseModel):
     status: str  # pending | success | failure | expired
     result: OptimizeResponse | None = None
     error: str | None = None
+
+
+# --- Orders CRUD ---
+
+class OrderResponse(BaseModel):
+    order_id: str
+    warehouse_id: str
+    lat: float
+    lng: float
+    weight: float
+    volume: float
+    status: str
+
+
+class CreateOrderRequest(BaseModel):
+    order_id: str
+    warehouse_id: str
+    lat: float
+    lng: float
+    weight: float = Field(gt=0)
+    volume: float = Field(gt=0)
+
+
+class UpdateOrderRequest(BaseModel):
+    warehouse_id: str
+    lat: float
+    lng: float
+    weight: float = Field(gt=0)
+    volume: float = Field(gt=0)
+    status: str
+
+
+# --- Vehicles CRUD ---
+
+class VehicleResponse(BaseModel):
+    vehicle_id: str
+    current_warehouse_id: str
+    max_weight: float
+    max_volume: float
+
+
+class CreateVehicleRequest(BaseModel):
+    vehicle_id: str
+    current_warehouse_id: str
+    max_weight: float = Field(gt=0)
+    max_volume: float = Field(gt=0)
+
+
+class UpdateVehicleRequest(BaseModel):
+    current_warehouse_id: str
+    max_weight: float = Field(gt=0)
+    max_volume: float = Field(gt=0)
+
+
+# --- Warehouses CRUD ---
+
+class WarehouseResponse(BaseModel):
+    warehouse_id: str
+    name: str
+    lat: float
+    lng: float
+
+
+class CreateWarehouseRequest(BaseModel):
+    warehouse_id: str
+    name: str
+    lat: float
+    lng: float
+
+
+class UpdateWarehouseRequest(BaseModel):
+    name: str
+    lat: float
+    lng: float

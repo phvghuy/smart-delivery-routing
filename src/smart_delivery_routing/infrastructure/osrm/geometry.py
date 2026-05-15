@@ -1,6 +1,8 @@
 import httpx
 
-_OSRM_BASE = "http://router.project-osrm.org"
+from smart_delivery_routing.config import OSRM_URL
+
+# _OSRM_BASE = "http://router.project-osrm.org"
 _cache: dict[tuple, list[list[float]]] = {}
 
 
@@ -20,7 +22,7 @@ def get_road_geometry(waypoints: list[tuple[float, float]]) -> list[list[float]]
     coords_str = ";".join(f"{lng},{lat}" for lat, lng in waypoints)
     try:
         resp = httpx.get(
-            f"{_OSRM_BASE}/route/v1/driving/{coords_str}",
+            f"{OSRM_URL}/route/v1/driving/{coords_str}",
             params={"overview": "full", "geometries": "geojson"},
             timeout=5.0,
         )

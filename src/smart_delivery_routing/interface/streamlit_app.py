@@ -10,7 +10,7 @@ from smart_delivery_routing.application.data_loader import (
 )
 from smart_delivery_routing.application.kpi import KPIReport
 from smart_delivery_routing.application.solvers.nearest_neighbor import NearestNeighborSolver
-from smart_delivery_routing.application.use_cases import (
+from smart_delivery_routing.application.routing_use_cases import (
     OptimizeRoutesInput,
     OptimizeRoutesOutput,
     ValidationFailed,

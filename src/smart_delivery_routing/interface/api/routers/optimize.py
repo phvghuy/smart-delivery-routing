@@ -2,8 +2,10 @@ from fastapi import APIRouter, Depends
 from fastapi.security import HTTPBearer
 
 from smart_delivery_routing.application.services import DistanceCalculator, JobService, RouteSolver
-from smart_delivery_routing.application.use_cases import OptimizeRoutesInput, OptimizeRoutesOutput, optimize_routes
+from smart_delivery_routing.application.routing_use_cases import OptimizeRoutesInput, OptimizeRoutesOutput, optimize_routes
+from smart_delivery_routing.domain.models import Warehouse
 from smart_delivery_routing.domain.repositories import OrderRepository, VehicleRepository, WarehouseRepository
+from smart_delivery_routing.infrastructure.osrm.geometry import get_road_geometry
 from ..dependencies import get_distance_calculator, get_job_service, get_order_repo, get_solvers, get_vehicle_repo, get_warehouse_repo, require_admin
 from ..schemas import AsyncOptimizeResponse, KPIReportResponse, OptimizeResponse, RouteResponse, SolverResultResponse, StopResponse, VehicleKPIResponse
 
@@ -50,15 +52,25 @@ def _run_all_solvers(
     distance_calculator: DistanceCalculator,
     solvers: list[tuple[str, RouteSolver]],
 ) -> OptimizeResponse:
-    return OptimizeResponse(
-        results=[
-            _to_solver_result(solver_name, optimize_routes(input, solver, distance_calculator, order_repo, vehicle_repo))
-            for solver_name, solver in solvers
-        ]
-    )
+    # Capture before solver mutates vehicle.current_warehouse_id
+    vehicle_start_warehouse = {v.vehicle_id: v.current_warehouse_id for v in input.vehicles}
+    warehouse_map = {w.warehouse_id: w for w in input.warehouses}
+    results = []
+    for solver_name, solver in solvers:
+        output = optimize_routes(input, solver, distance_calculator, order_repo, vehicle_repo)
+        # After optimize_routes, vehicles are mutated — current_warehouse_id is now the ending warehouse
+        vehicle_end_warehouse = {v.vehicle_id: v.current_warehouse_id for v in input.vehicles}
+        results.append(_to_solver_result(solver_name, output, vehicle_start_warehouse, vehicle_end_warehouse, warehouse_map))
+    return OptimizeResponse(results=results)
 
 
-def _to_solver_result(solver_name: str, output: OptimizeRoutesOutput) -> SolverResultResponse:
+def _to_solver_result(
+    solver_name: str,
+    output: OptimizeRoutesOutput,
+    vehicle_start_warehouse: dict[str, str],
+    vehicle_end_warehouse: dict[str, str],
+    warehouse_map: dict[str, Warehouse],
+) -> SolverResultResponse:
     return SolverResultResponse(
         solver=solver_name,
         routes=[
@@ -66,6 +78,7 @@ def _to_solver_result(solver_name: str, output: OptimizeRoutesOutput) -> SolverR
                 vehicle_id=r.vehicle_id,
                 stops=[StopResponse(order_id=s.order_id, lat=s.location.lat, lng=s.location.lng) for s in r.stops],
                 total_distance_km=r.total_distance,
+                geometry=_build_geometry(r.vehicle_id, r.stops, vehicle_start_warehouse, vehicle_end_warehouse, warehouse_map),
             )
             for r in output.result.routes
         ],
@@ -88,3 +101,26 @@ def _to_solver_result(solver_name: str, output: OptimizeRoutesOutput) -> SolverR
             ],
         ),
     )
+
+
+def _build_geometry(
+    vehicle_id: str,
+    stops: list,
+    vehicle_start_warehouse: dict[str, str],
+    vehicle_end_warehouse: dict[str, str],
+    warehouse_map: dict[str, Warehouse],
+) -> list[list[float]]:
+    if not stops:
+        return []
+
+    start_wh = warehouse_map.get(vehicle_start_warehouse.get(vehicle_id, ""))
+    end_wh = warehouse_map.get(vehicle_end_warehouse.get(vehicle_id, ""))
+
+    waypoints: list[tuple[float, float]] = []
+    if start_wh:
+        waypoints.append((start_wh.location.lat, start_wh.location.lng))
+    waypoints.extend((s.location.lat, s.location.lng) for s in stops)
+    if end_wh:
+        waypoints.append((end_wh.location.lat, end_wh.location.lng))
+
+    return get_road_geometry(waypoints)
