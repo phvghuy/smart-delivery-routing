@@ -1,24 +1,15 @@
 from fastapi import APIRouter, Depends
 from fastapi.security import HTTPBearer
 
-from smart_delivery_routing.application.solvers.nearest_neighbor import NearestNeighborSolver
-from smart_delivery_routing.application.tasks import run_optimize
+from smart_delivery_routing.application.services import DistanceCalculator, JobService, RouteSolver
 from smart_delivery_routing.application.use_cases import OptimizeRoutesInput, OptimizeRoutesOutput, optimize_routes
-from smart_delivery_routing.domain.ports import OrderRepository, RouteSolver, VehicleRepository, WarehouseRepository
-from smart_delivery_routing.config import OSRM_URL
-from smart_delivery_routing.infrastructure.osrm.distance import OSRMDistanceCalculator
-from smart_delivery_routing.infrastructure.redis_client import register_job
-from ..dependencies import get_order_repo, get_vehicle_repo, get_warehouse_repo, require_admin
+from smart_delivery_routing.domain.repositories import OrderRepository, VehicleRepository, WarehouseRepository
+from ..dependencies import get_distance_calculator, get_job_service, get_order_repo, get_solvers, get_vehicle_repo, get_warehouse_repo, require_admin
 from ..schemas import AsyncOptimizeResponse, KPIReportResponse, OptimizeResponse, RouteResponse, SolverResultResponse, StopResponse, VehicleKPIResponse
 
 _security = HTTPBearer()
 
 router = APIRouter(tags=["optimize"])
-
-_SOLVERS: list[tuple[str, RouteSolver]] = [
-    ("nearest_neighbor", NearestNeighborSolver()),
-]
-_distance_calculator = OSRMDistanceCalculator(base_url=OSRM_URL)
 
 
 @router.post("/optimize", response_model=OptimizeResponse)
@@ -27,6 +18,8 @@ def optimize(
     vehicle_repo: VehicleRepository = Depends(get_vehicle_repo),
     warehouse_repo: WarehouseRepository = Depends(get_warehouse_repo),
     _: None = Depends(require_admin),
+    distance_calculator: DistanceCalculator = Depends(get_distance_calculator),
+    solvers: list[tuple[str, RouteSolver]] = Depends(get_solvers),
 ) -> OptimizeResponse:
     orders = order_repo.get_orders()
     vehicles = vehicle_repo.get_vehicles()
@@ -35,6 +28,8 @@ def optimize(
         OptimizeRoutesInput(orders=orders, vehicles=vehicles, warehouses=warehouses),
         order_repo,
         vehicle_repo,
+        distance_calculator,
+        solvers,
     )
 
 
@@ -42,21 +37,23 @@ def optimize(
 def optimize_async(
     token=Depends(_security),
     _: None = Depends(require_admin),
+    job_service: JobService = Depends(get_job_service),
 ) -> AsyncOptimizeResponse:
-    task = run_optimize.delay(token.credentials)
-    register_job(task.id)
-    return AsyncOptimizeResponse(job_id=task.id)
+    job_id = job_service.submit(token.credentials)
+    return AsyncOptimizeResponse(job_id=job_id)
 
 
 def _run_all_solvers(
     input: OptimizeRoutesInput,
     order_repo: OrderRepository,
     vehicle_repo: VehicleRepository,
+    distance_calculator: DistanceCalculator,
+    solvers: list[tuple[str, RouteSolver]],
 ) -> OptimizeResponse:
     return OptimizeResponse(
         results=[
-            _to_solver_result(solver_name, optimize_routes(input, solver, _distance_calculator, order_repo, vehicle_repo))
-            for solver_name, solver in _SOLVERS
+            _to_solver_result(solver_name, optimize_routes(input, solver, distance_calculator, order_repo, vehicle_repo))
+            for solver_name, solver in solvers
         ]
     )
 

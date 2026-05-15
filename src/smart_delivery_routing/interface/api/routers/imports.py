@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, UploadFile
 
 from smart_delivery_routing.application.data_loader import load_orders_from_bytes, load_vehicles_from_bytes, load_warehouses_from_bytes
-from smart_delivery_routing.domain.ports import OrderRepository, VehicleRepository, WarehouseRepository
+from smart_delivery_routing.domain.repositories import OrderRepository, VehicleRepository, WarehouseRepository
 from ..dependencies import get_order_repo, get_vehicle_repo, get_warehouse_repo, require_admin
 
 router = APIRouter(tags=["imports"])

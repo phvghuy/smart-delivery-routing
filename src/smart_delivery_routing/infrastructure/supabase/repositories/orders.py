@@ -1,7 +1,7 @@
 from supabase import Client
 
 from smart_delivery_routing.domain.models import Location, Order, OrderStatus
-from smart_delivery_routing.domain.ports import OrderRepository
+from smart_delivery_routing.domain.repositories import OrderRepository
 
 
 class SupabaseOrderRepository(OrderRepository):

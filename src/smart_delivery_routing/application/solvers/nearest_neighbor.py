@@ -1,5 +1,5 @@
 from smart_delivery_routing.domain.models import Order, Route, RoutingResult, Stop, Vehicle, Warehouse, OrderStatus
-from smart_delivery_routing.domain.ports import RouteSolver
+from smart_delivery_routing.application.services import RouteSolver
 
 
 class NearestNeighborSolver(RouteSolver):

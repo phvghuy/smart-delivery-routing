@@ -1,7 +1,7 @@
 from ortools.constraint_solver import pywrapcp, routing_enums_pb2
 
 from smart_delivery_routing.domain.models import Order, Route, RoutingResult, Stop, Vehicle
-from smart_delivery_routing.domain.ports import RouteSolver
+from smart_delivery_routing.application.services import RouteSolver
 
 # OR-Tools works with integers — scale floats before passing in
 _DISTANCE_SCALE = 1_000   # km → m

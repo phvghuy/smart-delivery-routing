@@ -1,7 +1,7 @@
 from supabase import Client
 
 from smart_delivery_routing.domain.models import Location, Warehouse
-from smart_delivery_routing.domain.ports import WarehouseRepository
+from smart_delivery_routing.domain.repositories import WarehouseRepository
 
 
 class SupabaseWarehouseRepository(WarehouseRepository):

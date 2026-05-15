@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 
 from smart_delivery_routing.domain.models import Order, RoutingResult, Vehicle, Warehouse, OrderStatus
-from smart_delivery_routing.domain.ports import DistanceCalculator, OrderRepository, RouteSolver, VehicleRepository
+from smart_delivery_routing.application.services import DistanceCalculator, RouteSolver
+from smart_delivery_routing.domain.repositories import OrderRepository, VehicleRepository
 from smart_delivery_routing.domain.validators import ValidationError, validate_orders, validate_vehicles
 
 from .kpi import KPIReport, compute_kpi

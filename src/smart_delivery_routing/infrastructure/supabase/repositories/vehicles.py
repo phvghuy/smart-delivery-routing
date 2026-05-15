@@ -1,7 +1,7 @@
 from supabase import Client
 
 from smart_delivery_routing.domain.models import Vehicle
-from smart_delivery_routing.domain.ports import VehicleRepository
+from smart_delivery_routing.domain.repositories import VehicleRepository
 
 
 class SupabaseVehicleRepository(VehicleRepository):
