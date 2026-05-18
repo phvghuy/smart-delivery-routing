@@ -12,3 +12,5 @@ wheels/
 .env
 
 src/smart_delivery_routing/infrastructure/osrm/data/
+
+firebase-service-account.json

@@ -2,6 +2,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from smart_delivery_routing.infrastructure.firebase import initialize_firebase
+
+initialize_firebase()
+
 from smart_delivery_routing.application.data_loader import LoadError
 from smart_delivery_routing.application.order_use_cases import (
     InvalidStatusTransition,
@@ -17,7 +21,7 @@ from smart_delivery_routing.application.warehouse_use_cases import (
     WarehouseNotFound,
 )
 
-from .routers import auth, imports, jobs, optimize, orders, vehicles, warehouses
+from .routers import auth, drivers, imports, jobs, notifications, optimize, orders, vehicles, warehouses, ws
 
 app = FastAPI(title="Smart Delivery Routing")
 
@@ -36,6 +40,9 @@ app.include_router(vehicles.router)
 app.include_router(warehouses.router)
 app.include_router(optimize.router)
 app.include_router(jobs.router)
+app.include_router(ws.router)
+app.include_router(drivers.router)
+app.include_router(notifications.router)
 
 
 @app.exception_handler(ValidationFailed)

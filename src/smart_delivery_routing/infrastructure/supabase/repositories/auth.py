@@ -14,3 +14,8 @@ def sign_out(access_token: str) -> None:
 def get_user_role(access_token: str) -> str | None:
     user = get_supabase_client().auth.get_user(access_token)
     return user.user.app_metadata.get("role")
+
+
+def get_user_id(access_token: str) -> str:
+    user = get_supabase_client().auth.get_user(access_token)
+    return str(user.user.id)

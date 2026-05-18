@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends, Query
 from smart_delivery_routing.application import order_use_cases
 from smart_delivery_routing.domain.models import Location, Order, OrderStatus
 from smart_delivery_routing.domain.repositories import OrderRepository
-from ..dependencies import get_order_repo, require_admin, require_driver
+from smart_delivery_routing.infrastructure.websocket import ConnectionManager
+from ..dependencies import get_order_repo, get_ws_manager, require_admin, require_driver
 from ..schemas import CreateOrderRequest, OrderResponse, PaginatedOrderResponse, UpdateOrderRequest
 
 router = APIRouter(prefix="/orders", tags=["orders"])
@@ -68,10 +69,11 @@ def create_order(
 
 
 @router.put("/{order_id}", response_model=OrderResponse)
-def update_order(
+async def update_order(
     order_id: str,
     body: UpdateOrderRequest,
     order_repo: OrderRepository = Depends(get_order_repo),
+    manager: ConnectionManager = Depends(get_ws_manager),
     _: None = Depends(require_admin),
 ) -> OrderResponse:
     order = Order(
@@ -82,7 +84,14 @@ def update_order(
         volume=body.volume,
         status=OrderStatus(body.status),
     )
-    return _to_response(order_use_cases.update_order(order_id, order, order_repo))
+    updated = order_use_cases.update_order(order_id, order, order_repo)
+    if updated.status == OrderStatus.DELIVERED:
+        await manager.broadcast({
+            "event": "order.delivered",
+            "order_id": updated.order_id,
+            "warehouse_id": updated.warehouse_id,
+        })
+    return _to_response(updated)
 
 
 @router.delete("/{order_id}", status_code=204)

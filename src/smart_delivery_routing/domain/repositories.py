@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from .models import Order, OrderStatus, Vehicle, Warehouse
+from .models import Driver, Notification, Order, OrderStatus, Vehicle, Warehouse
 
 
 class OrderRepository(ABC):
@@ -80,3 +80,28 @@ class WarehouseRepository(ABC):
 
     @abstractmethod
     def delete_warehouse(self, warehouse_id: str) -> None: ...
+
+
+class DriverRepository(ABC):
+    @abstractmethod
+    def get_driver_by_id(self, driver_id: str) -> Driver | None: ...
+
+    @abstractmethod
+    def get_driver_by_vehicle_id(self, vehicle_id: str) -> Driver | None: ...
+
+    @abstractmethod
+    def upsert_driver(self, driver: Driver) -> Driver: ...
+
+    @abstractmethod
+    def update_fcm_token(self, driver_id: str, fcm_token: str) -> None: ...
+
+
+class NotificationRepository(ABC):
+    @abstractmethod
+    def create_notification(self, notification: Notification) -> Notification: ...
+
+    @abstractmethod
+    def get_notifications_by_driver(self, driver_id: str) -> list[Notification]: ...
+
+    @abstractmethod
+    def mark_as_read(self, notification_id: str, driver_id: str) -> None: ... 

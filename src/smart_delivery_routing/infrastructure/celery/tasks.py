@@ -2,15 +2,37 @@ from smart_delivery_routing.application.solvers.nearest_neighbor import NearestN
 from smart_delivery_routing.application.routing_use_cases import NoPendingOrders, OptimizeRoutesInput, optimize_routes
 from smart_delivery_routing.config import OSRM_URL
 from smart_delivery_routing.infrastructure.celery import celery_app
+from smart_delivery_routing.infrastructure.fcm_notification_service import FCMNotificationService
 from smart_delivery_routing.infrastructure.osrm.distance import OSRMDistanceCalculator
 from smart_delivery_routing.infrastructure.osrm.geometry import get_road_geometry
 from smart_delivery_routing.infrastructure.supabase.client import get_supabase_client
+from smart_delivery_routing.infrastructure.supabase.repositories.drivers import SupabaseDriverRepository
+from smart_delivery_routing.infrastructure.supabase.repositories.notifications import SupabaseNotificationRepository
 from smart_delivery_routing.infrastructure.supabase.repositories.orders import SupabaseOrderRepository
 from smart_delivery_routing.infrastructure.supabase.repositories.vehicles import SupabaseVehicleRepository
 from smart_delivery_routing.infrastructure.supabase.repositories.warehouses import SupabaseWarehouseRepository
 
 _solver = NearestNeighborSolver()
 _distance_calculator = OSRMDistanceCalculator(base_url=OSRM_URL)
+
+
+def _send_route_notifications(client, routes, job_id: str) -> None:
+    driver_repo = SupabaseDriverRepository(client)
+    notification_service = FCMNotificationService(SupabaseNotificationRepository(client))
+    for route in routes:
+        if not route.stops:
+            continue
+        driver = driver_repo.get_driver_by_vehicle_id(route.vehicle_id)
+        if driver is None or driver.fcm_token is None:
+            continue
+        notification_service.send_route_notification(
+            driver_id=driver.driver_id,
+            fcm_token=driver.fcm_token,
+            vehicle_id=route.vehicle_id,
+            stops_count=len(route.stops),
+            distance_km=route.total_distance,
+            job_id=job_id,
+        )
 
 
 def _build_geometry(vehicle_id, stops, vehicle_start_warehouse, vehicle_end_warehouse, warehouse_map):
@@ -27,8 +49,8 @@ def _build_geometry(vehicle_id, stops, vehicle_start_warehouse, vehicle_end_ware
     return get_road_geometry(waypoints)
 
 
-@celery_app.task(name="optimize", throws=(NoPendingOrders,))
-def run_optimize(token: str) -> dict:
+@celery_app.task(name="optimize", bind=True, throws=(NoPendingOrders,))
+def run_optimize(self, token: str) -> dict:
     client = get_supabase_client()
     client.postgrest.auth(token)
 
@@ -54,6 +76,8 @@ def run_optimize(token: str) -> dict:
 
     # After optimize_routes, vehicles are mutated — current_warehouse_id is now the ending warehouse
     vehicle_end_warehouse = {v.vehicle_id: v.current_warehouse_id for v in vehicles}
+
+    _send_route_notifications(client, output.result.routes, self.request.id)
 
     return {
         "results": [

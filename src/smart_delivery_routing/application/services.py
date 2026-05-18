@@ -54,3 +54,16 @@ class JobService(ABC):
 
     @abstractmethod
     def get_status(self, job_id: str) -> JobStatus: ...
+
+
+class NotificationService(ABC):
+    @abstractmethod
+    def send_route_notification(
+        self,
+        driver_id: str,
+        fcm_token: str,
+        vehicle_id: str,
+        stops_count: int,
+        distance_km: float,
+        job_id: str,
+    ) -> None: ...

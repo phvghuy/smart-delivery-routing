@@ -59,3 +59,21 @@ class RoutingResult:
     unassigned_orders: list[str]
     total_distance: float
     vehicles_used: int
+
+
+@dataclass
+class Driver:
+    driver_id: str
+    vehicle_id: str | None = None
+    fcm_token: str | None = None
+
+
+@dataclass
+class Notification:
+    driver_id: str
+    title: str
+    body: str
+    data: dict
+    notification_id: str = ""
+    is_read: bool = False
+    created_at: str = ""

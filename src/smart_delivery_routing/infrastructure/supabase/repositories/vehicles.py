@@ -35,7 +35,7 @@ class SupabaseVehicleRepository(VehicleRepository):
             .maybe_single()
             .execute()
         )
-        if response.data is None:
+        if response is None or response.data is None:
             return None
         return self._to_model(response.data)
 
