@@ -20,16 +20,17 @@ class FCMNotificationService(NotificationService):
         distance_km: float,
         job_id: str,
     ) -> None:
-        body = f"{stops_count} điểm giao · {distance_km:.1f} km"
+        title = "New Delivery Route Assigned"
+        body = f"{stops_count} delivery stops · {distance_km:.1f} km"
         self._repo.create_notification(Notification(
             driver_id=driver_id,
-            title="Tuyến giao hàng mới",
+            title=title,
             body=body,
             data={"vehicle_id": vehicle_id, "job_id": job_id},
         ))
         try:
             messaging.send(messaging.Message(
-                notification=messaging.Notification(title="Tuyến giao hàng mới", body=body),
+                notification=messaging.Notification(title=title, body=body),
                 data={"vehicle_id": vehicle_id, "job_id": job_id},
                 token=fcm_token,
             ))
