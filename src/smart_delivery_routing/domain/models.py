@@ -30,6 +30,7 @@ class Order:
     weight: float
     volume: float
     status: OrderStatus = OrderStatus.PENDING
+    optimization_job_id: str | None = None
 
 
 @dataclass

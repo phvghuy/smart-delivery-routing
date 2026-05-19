@@ -41,6 +41,7 @@ class SupabaseOrderRepository(OrderRepository):
             weight=row["weight"],
             volume=row["volume"],
             status=OrderStatus(row["status"]),
+            optimization_job_id=row.get("optimization_job_id"),
         )
 
     def get_orders_paginated(
@@ -119,3 +120,19 @@ class SupabaseOrderRepository(OrderRepository):
             .execute()
         )
         return [self._to_model(row) for row in response.data]
+    
+    def update_job_id(self, order_ids: list[str], job_id: str) -> None:
+        if not order_ids:
+            return
+        self._client.table("orders").update({"optimization_job_id": job_id}).in_("order_id", order_ids).execute()
+
+    def count_active_in_batch(self, job_id: str) -> int:
+        response = (
+            self._client.table("orders")
+            .select("*", count="exact", head=True)
+            .eq("optimization_job_id", job_id)
+            .eq("status", OrderStatus.ASSIGNED.value)
+            .execute()
+        )
+        return response.count or 0
+

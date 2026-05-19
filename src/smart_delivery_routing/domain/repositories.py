@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from .models import Driver, Notification, Order, OrderStatus, Vehicle, Warehouse
+from .models import Driver, Notification, Order, OrderStatus, Route, Vehicle, Warehouse
 
 
 class OrderRepository(ABC):
@@ -37,6 +37,12 @@ class OrderRepository(ABC):
 
     @abstractmethod
     def mark_assigned(self, order_ids: list[str]) -> None: ...
+
+    @abstractmethod
+    def update_job_id(self, order_ids: list[str], job_id: str) -> None: ...
+
+    @abstractmethod
+    def count_active_in_batch(self, job_id: str) -> int: ...
 
 
 class VehicleRepository(ABC):
@@ -80,6 +86,17 @@ class WarehouseRepository(ABC):
 
     @abstractmethod
     def delete_warehouse(self, warehouse_id: str) -> None: ...
+
+
+class RouteRepository(ABC):
+    @abstractmethod
+    def save_routes(self, job_id: str, routes: list[Route]) -> None: ...
+
+    @abstractmethod
+    def get_routes_by_job(self, job_id: str) -> list[Route]: ...
+
+    @abstractmethod
+    def get_route_by_vehicle(self, job_id: str, vehicle_id: str) -> Route | None: ...
 
 
 class DriverRepository(ABC):

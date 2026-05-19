@@ -1,10 +1,12 @@
 from fastapi import APIRouter, Depends, Query
 
 from smart_delivery_routing.application import order_use_cases
+from smart_delivery_routing.application.services import JobService
+from smart_delivery_routing.config import SUPABASE_SERVICE_KEY
 from smart_delivery_routing.domain.models import Location, Order, OrderStatus
 from smart_delivery_routing.domain.repositories import OrderRepository
 from smart_delivery_routing.infrastructure.websocket import ConnectionManager
-from ..dependencies import get_order_repo, get_ws_manager, require_admin, require_driver
+from ..dependencies import get_job_service, get_order_repo, get_ws_manager, require_admin, require_driver
 from ..schemas import CreateOrderRequest, OrderResponse, PaginatedOrderResponse, UpdateOrderRequest
 
 router = APIRouter(prefix="/orders", tags=["orders"])
@@ -74,6 +76,7 @@ async def update_order(
     body: UpdateOrderRequest,
     order_repo: OrderRepository = Depends(get_order_repo),
     manager: ConnectionManager = Depends(get_ws_manager),
+    job_service: JobService = Depends(get_job_service),
     _: None = Depends(require_admin),
 ) -> OrderResponse:
     order = Order(
@@ -84,13 +87,16 @@ async def update_order(
         volume=body.volume,
         status=OrderStatus(body.status),
     )
-    updated = order_use_cases.update_order(order_id, order, order_repo)
+    updated, batch_complete = order_use_cases.update_order(order_id, order, order_repo)
     if updated.status == OrderStatus.DELIVERED:
         await manager.broadcast({
             "event": "order.delivered",
             "order_id": updated.order_id,
             "warehouse_id": updated.warehouse_id,
         })
+    if batch_complete:
+        job_service.submit(SUPABASE_SERVICE_KEY)
+        await manager.broadcast({"event": "optimization.auto_triggered"})
     return _to_response(updated)
 
 

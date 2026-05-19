@@ -115,7 +115,10 @@ def create_order(order: Order, repo: OrderRepository) -> Order:
     return repo.create_order(order)
 
 
-def update_order(order_id: str, updated: Order, repo: OrderRepository) -> Order:
+_TERMINAL_STATUSES = {OrderStatus.DELIVERED, OrderStatus.CANCELLED}
+
+
+def update_order(order_id: str, updated: Order, repo: OrderRepository) -> tuple[Order, bool]:
     errors = validate_order_fields(updated)
     if errors:
         raise ValidationFailed(errors)
@@ -126,7 +129,15 @@ def update_order(order_id: str, updated: Order, repo: OrderRepository) -> Order:
 
     _check_status_transition(order_id, existing.status, updated.status)
 
-    return repo.update_order(updated)
+    saved = repo.update_order(updated)
+
+    batch_complete = (
+        saved.status in _TERMINAL_STATUSES
+        and saved.optimization_job_id is not None
+        and repo.count_active_in_batch(saved.optimization_job_id) == 0
+    )
+
+    return saved, batch_complete
 
 
 def delete_order(order_id: str, repo: OrderRepository) -> None:

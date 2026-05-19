@@ -11,6 +11,7 @@ from smart_delivery_routing.infrastructure.supabase.repositories.notifications i
 from smart_delivery_routing.infrastructure.supabase.repositories.orders import SupabaseOrderRepository
 from smart_delivery_routing.infrastructure.supabase.repositories.vehicles import SupabaseVehicleRepository
 from smart_delivery_routing.infrastructure.supabase.repositories.warehouses import SupabaseWarehouseRepository
+from smart_delivery_routing.infrastructure.supabase.repositories.routes import SupabaseRouteRepository
 
 _solver = NearestNeighborSolver()
 _distance_calculator = OSRMDistanceCalculator(base_url=OSRM_URL)
@@ -57,6 +58,7 @@ def run_optimize(self, token: str) -> dict:
     order_repo = SupabaseOrderRepository(client)
     vehicle_repo = SupabaseVehicleRepository(client)
     warehouse_repo = SupabaseWarehouseRepository(client)
+    route_repo = SupabaseRouteRepository(client)
 
     orders = order_repo.get_orders()
     vehicles = vehicle_repo.get_vehicles()
@@ -79,10 +81,16 @@ def run_optimize(self, token: str) -> dict:
 
     _send_route_notifications(client, output.result.routes, self.request.id)
 
+    # Assign job_id for orders
+    assigned_ids = [s.order_id for r in output.result.routes for s in r.stops]
+    order_repo.update_job_id(assigned_ids, self.request.id)
+
+    route_repo.save_routes(self.request.id, output.result.routes)
+
     return {
         "results": [
             {
-                "solver": "nearest_neighbor",
+                # "solver": "nearest_neighbor",
                 "routes": [
                     {
                         "vehicle_id": r.vehicle_id,
