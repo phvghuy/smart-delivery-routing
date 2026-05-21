@@ -90,7 +90,7 @@ def run_optimize(self, token: str) -> dict:
     return {
         "results": [
             {
-                # "solver": "nearest_neighbor",
+                "solver": "nearest_neighbor",
                 "routes": [
                     {
                         "vehicle_id": r.vehicle_id,
