@@ -105,6 +105,78 @@ class UpdateOrderRequest(BaseModel):
     status: str
 
 
+# --- Hubs CRUD ---
+
+class HubResponse(BaseModel):
+    id: str
+    name: str
+    type: int
+    address_text: str
+    lat: float
+    lng: float
+    status: int
+    deleted_at: str | None = None
+
+
+class PaginatedHubResponse(BaseModel):
+    items: list[HubResponse]
+    total: int
+    page: int
+    size: int
+    pages: int
+
+
+class CreateHubRequest(BaseModel):
+    id: str
+    name: str
+    type: int
+    address_text: str
+    lat: float = Field(ge=-90, le=90)
+    lng: float = Field(ge=-180, le=180)
+
+
+class UpdateHubRequest(BaseModel):
+    name: str
+    type: int
+    address_text: str
+    lat: float = Field(ge=-90, le=90)
+    lng: float = Field(ge=-180, le=180)
+    status: int
+
+
+# --- Trucks CRUD ---
+
+class TruckResponse(BaseModel):
+    id: str
+    plate_number: str
+    max_weight: float
+    max_volume: float
+    status: int
+    deleted_at: str | None = None
+
+
+class PaginatedTruckResponse(BaseModel):
+    items: list[TruckResponse]
+    total: int
+    page: int
+    size: int
+    pages: int
+
+
+class CreateTruckRequest(BaseModel):
+    id: str
+    plate_number: str
+    max_weight: float = Field(gt=0)
+    max_volume: float = Field(gt=0)
+
+
+class UpdateTruckRequest(BaseModel):
+    plate_number: str
+    max_weight: float = Field(gt=0)
+    max_volume: float = Field(gt=0)
+    status: int
+
+
 # --- Vehicles CRUD ---
 
 class VehicleResponse(BaseModel):
@@ -125,6 +197,56 @@ class UpdateVehicleRequest(BaseModel):
     current_warehouse_id: str
     max_weight: float = Field(gt=0)
     max_volume: float = Field(gt=0)
+
+
+# --- Drivers CRUD ---
+
+class DriverResponse(BaseModel):
+    id: str
+    name: str
+    phone: str
+    plate_number: str
+    current_hub_id: str
+    hub_name: str
+    max_weight: float
+    max_volume: float
+    status: int
+    fcm_token: str
+    deleted_at: str | None = None
+
+
+class PaginatedDriverResponse(BaseModel):
+    items: list[DriverResponse]
+    total: int
+    page: int
+    size: int
+    pages: int
+
+
+class UpdateFCMTokenRequest(BaseModel):
+    fcm_token: str
+
+
+class CreateDriverRequest(BaseModel):
+    id: str
+    name: str
+    phone: str
+    plate_number: str
+    current_hub_id: str
+    max_weight: float = Field(gt=0)
+    max_volume: float = Field(gt=0)
+    fcm_token: str = ""
+
+
+class UpdateDriverRequest(BaseModel):
+    name: str
+    phone: str
+    plate_number: str
+    current_hub_id: str
+    max_weight: float = Field(gt=0)
+    max_volume: float = Field(gt=0)
+    status: int
+    fcm_token: str = ""
 
 
 # --- Warehouses CRUD ---

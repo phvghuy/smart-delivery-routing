@@ -1,6 +1,6 @@
 import numpy as np
 
-from smart_delivery_routing.domain.models import Location
+from smart_delivery_routing.domain.shared import Location
 from smart_delivery_routing.application.services import DistanceCalculator
 
 _EARTH_RADIUS_KM = 6371.0

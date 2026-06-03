@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
-from smart_delivery_routing.domain.models import Notification
-from smart_delivery_routing.domain.repositories import NotificationRepository
+from smart_delivery_routing.domain.notification import Notification, NotificationRepository
 from ..dependencies import get_current_driver_id, get_notification_repo, require_driver
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])

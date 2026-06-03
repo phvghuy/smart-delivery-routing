@@ -1,8 +1,7 @@
 from firebase_admin import messaging
 
 from smart_delivery_routing.application.services import NotificationService
-from smart_delivery_routing.domain.models import Notification
-from smart_delivery_routing.domain.repositories import NotificationRepository
+from smart_delivery_routing.domain.notification import Notification, NotificationRepository
 from smart_delivery_routing.infrastructure.firebase import initialize_firebase
 
 

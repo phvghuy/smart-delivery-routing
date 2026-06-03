@@ -3,7 +3,7 @@ import hashlib
 import httpx
 
 from smart_delivery_routing.config import OSRM_URL
-from smart_delivery_routing.domain.models import Location
+from smart_delivery_routing.domain.shared import Location
 from smart_delivery_routing.application.services import DistanceCalculator
 from smart_delivery_routing.infrastructure.haversine import HaversineDistanceCalculator
 from smart_delivery_routing.infrastructure.redis_client import get_matrix_cache, set_matrix_cache

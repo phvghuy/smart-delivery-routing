@@ -1,25 +1,18 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from smart_delivery_routing.domain.models import Location, Order, RoutingResult, Vehicle, Warehouse
+# TODO: restore after domain.models migration
+# from smart_delivery_routing.domain.models import Location, Order, RoutingResult, Vehicle, Warehouse
 
 
-class DistanceCalculator(ABC):
-    @abstractmethod
-    def compute_matrix(self, locations: list[Location]) -> list[list[float]]:
-        """Return an N×N matrix where matrix[i][j] is distance in km from location i to j."""
+# class DistanceCalculator(ABC):
+#     @abstractmethod
+#     def compute_matrix(self, locations: list[Location]) -> list[list[float]]: ...
 
 
-class RouteSolver(ABC):
-    @abstractmethod
-    def solve(
-        self,
-        orders: list[Order],
-        vehicles: list[Vehicle],
-        warehouses: list[Warehouse],
-        distance_matrix: list[list[float]],
-    ) -> RoutingResult:
-        """Assign orders to vehicles and return optimized routes."""
+# class RouteSolver(ABC):
+#     @abstractmethod
+#     def solve(self, orders, vehicles, warehouses, distance_matrix) -> ...: ...
 
 
 @dataclass(frozen=True)

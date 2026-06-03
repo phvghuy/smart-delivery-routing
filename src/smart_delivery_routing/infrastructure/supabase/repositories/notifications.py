@@ -1,7 +1,6 @@
 from supabase import Client
 
-from smart_delivery_routing.domain.models import Notification
-from smart_delivery_routing.domain.repositories import NotificationRepository
+from smart_delivery_routing.domain.notification import Notification, NotificationRepository
 
 
 class SupabaseNotificationRepository(NotificationRepository):
