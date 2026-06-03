@@ -1,6 +1,8 @@
 from dataclasses import dataclass
+from datetime import datetime
+from uuid import UUID
 
-from .models import HubStatus, HubType, Truck, TruckStatus
+from .models import HubStatus, HubType, ParcelStatus, TruckStatus
 
 
 @dataclass(frozen=True)
@@ -11,6 +13,14 @@ class HubQuery:
     statuses: list[HubStatus] | None = None
     types: list[HubType] | None = None
     include_deleted: bool = False
+
+
+@dataclass(frozen=True)
+class ParcelQuery:
+    page_size: int = 20
+    statuses: list[ParcelStatus] | None = None
+    cursor_created_at: datetime | None = None
+    cursor_id: UUID | None = None
 
 
 @dataclass(frozen=True)

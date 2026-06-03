@@ -2,7 +2,15 @@ from abc import ABC, abstractmethod
 from uuid import UUID
 
 from .models import Hub, Parcel, ParcelStatus, Truck, TruckTrip, TruckTripItem
-from .queries import HubQuery, TruckQuery
+from .queries import HubQuery, ParcelQuery, TruckQuery
+
+
+class ParcelRepository(ABC):
+    @abstractmethod
+    def get_by_id(self, parcel_id: UUID) -> Parcel | None: ...
+
+    @abstractmethod
+    def list(self, query: ParcelQuery) -> list[Parcel]: ...
 
 
 class HubRepository(ABC):

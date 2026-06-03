@@ -4,8 +4,9 @@ from supabase import Client
 
 from smart_delivery_routing.application.services import AuthService, JobService, NotificationService
 from smart_delivery_routing.domain.delivery import DriverRepository
-from smart_delivery_routing.domain.linehaul import HubRepository, TruckRepository
+from smart_delivery_routing.domain.linehaul import HubRepository, ParcelRepository, TruckRepository
 from smart_delivery_routing.domain.notification import NotificationRepository
+from smart_delivery_routing.domain.shipping import ShippingRequestRepository
 from smart_delivery_routing.infrastructure.fcm_notification_service import FCMNotificationService
 from smart_delivery_routing.infrastructure.websocket import ConnectionManager
 
@@ -18,6 +19,8 @@ from smart_delivery_routing.infrastructure.supabase.repositories.drivers import 
 from smart_delivery_routing.infrastructure.supabase.repositories.hubs import SupabaseHubRepository
 from smart_delivery_routing.infrastructure.supabase.repositories.trucks import SupabaseTruckRepository
 from smart_delivery_routing.infrastructure.supabase.repositories.notifications import SupabaseNotificationRepository
+from smart_delivery_routing.infrastructure.supabase.repositories.parcels import SupabaseParcelRepository
+from smart_delivery_routing.infrastructure.supabase.repositories.shipping_requests import SupabaseShippingRequestRepository
 
 # TODO: restore after domain.models migration
 # from smart_delivery_routing.application.services import DistanceCalculator, RouteSolver
@@ -53,6 +56,14 @@ def _authed_client(token: str) -> Client:
 
 # def get_warehouse_repo(token=Depends(_security)) -> WarehouseRepository:
 #     return SupabaseWarehouseRepository(_authed_client(token.credentials))
+
+
+def get_parcel_repo(token=Depends(_security)) -> ParcelRepository:
+    return SupabaseParcelRepository(_authed_client(token.credentials))
+
+
+def get_shipping_request_repo(token=Depends(_security)) -> ShippingRequestRepository:
+    return SupabaseShippingRequestRepository(_authed_client(token.credentials))
 
 
 def get_truck_repo(token=Depends(_security)) -> TruckRepository:

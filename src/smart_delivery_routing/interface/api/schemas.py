@@ -249,6 +249,77 @@ class UpdateDriverRequest(BaseModel):
     fcm_token: str = ""
 
 
+# --- Parcels ---
+
+class ParcelResponse(BaseModel):
+    id: str
+    shipping_request_id: str
+    tracking_number: str
+    origin_hub_id: str
+    origin_hub_name: str
+    destination_hub_id: str
+    destination_hub_name: str
+    current_hub_id: str | None = None
+    current_hub_name: str
+    weight: float
+    volume: float
+    status: int
+    created_at: str
+    updated_at: str
+
+
+class CursorPagedParcelResponse(BaseModel):
+    items: list[ParcelResponse]
+    next_cursor: str | None
+
+
+# --- Shipping Requests ---
+
+class ShippingRequestResponse(BaseModel):
+    id: str
+    external_order_id: str
+    seller_id: str
+    pickup_address_text: str
+    pickup_lat: float
+    pickup_lng: float
+    delivery_address_text: str
+    delivery_lat: float
+    delivery_lng: float
+    receiver_name: str
+    receiver_phone: str
+    weight: float
+    volume: float
+    service_type: int
+    status: int
+    cod_amount: float | None = None
+    cod_currency: str | None = None
+    created_at: str
+
+
+class CursorPagedShippingRequestResponse(BaseModel):
+    items: list[ShippingRequestResponse]
+    next_cursor: str | None
+
+
+class CreateShippingRequestRequest(BaseModel):
+    id: str
+    external_order_id: str
+    seller_id: str
+    pickup_address_text: str
+    pickup_lat: float = Field(ge=-90, le=90)
+    pickup_lng: float = Field(ge=-180, le=180)
+    delivery_address_text: str
+    delivery_lat: float = Field(ge=-90, le=90)
+    delivery_lng: float = Field(ge=-180, le=180)
+    receiver_name: str
+    receiver_phone: str
+    weight: float = Field(gt=0)
+    volume: float = Field(gt=0)
+    service_type: int = 1
+    cod_amount: float | None = None
+    cod_currency: str = "VND"
+
+
 # --- Warehouses CRUD ---
 
 class WarehouseResponse(BaseModel):

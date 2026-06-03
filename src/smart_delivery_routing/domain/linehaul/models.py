@@ -31,6 +31,10 @@ class Parcel:
     updated_at: datetime
     current_hub_id: UUID | None = None
     status: ParcelStatus = ParcelStatus.AWAITING_PICKUP
+    # denormalized — populated from DB join, not domain logic
+    origin_hub_name: str = ""
+    destination_hub_name: str = ""
+    current_hub_name: str = ""
 
 
 class HubType(IntEnum):
