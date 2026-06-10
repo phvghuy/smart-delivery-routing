@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -65,6 +67,16 @@ class SupabaseDriverRepository(DriverRepository):
 
     def update_fcm_token(self, driver_id: str, fcm_token: str) -> None:
         self._client.table("drivers").update({"fcm_token": fcm_token}).eq("id", driver_id).execute()
+
+    def list_available(self) -> list[Driver]:
+        response = (
+            self._client.table("drivers")
+            .select("*, hubs(id, name)")
+            .eq("status", DriverStatus.AVAILABLE.value)
+            .is_("deleted_at", "null")
+            .execute()
+        )
+        return [self._to_model(row) for row in response.data]
 
     @staticmethod
     def _to_row(driver: Driver) -> dict:

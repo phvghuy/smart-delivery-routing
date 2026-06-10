@@ -249,6 +249,75 @@ class UpdateDriverRequest(BaseModel):
     fcm_token: str = ""
 
 
+# --- Truck Trips ---
+
+class TruckTripResponse(BaseModel):
+    id: str
+    truck_id: str
+    truck_plate_number: str
+    origin_hub_id: str
+    origin_hub_name: str
+    destination_hub_id: str
+    destination_hub_name: str
+    status: int
+    planned_departure_time: str
+    actual_departure_time: str | None = None
+    actual_arrival_time: str | None = None
+    created_at: str
+    deleted_at: str | None = None
+
+
+class PaginatedTruckTripResponse(BaseModel):
+    items: list[TruckTripResponse]
+    total: int
+    page: int
+    size: int
+    pages: int
+
+
+class CreateTruckTripRequest(BaseModel):
+    truck_id: str
+    origin_hub_id: str
+    destination_hub_id: str
+    planned_departure_time: str  # ISO 8601
+
+
+class TruckTripItemResponse(BaseModel):
+    id: str
+    truck_trip_id: str
+    parcel_id: str
+    loaded_at: str
+    unloaded_at: str | None = None
+
+
+class TruckTripItemDetailResponse(BaseModel):
+    id: str
+    parcel_id: str
+    tracking_number: str
+    weight: float
+    volume: float
+    parcel_status: int
+    loaded_at: str
+    unloaded_at: str | None = None
+
+
+class AddParcelToTripRequest(BaseModel):
+    parcel_id: str
+
+
+# --- Tracking Events ---
+
+class TrackingEventResponse(BaseModel):
+    id: str
+    parcel_id: str
+    status: int
+    location_kind: int
+    location_name: str
+    location_id: str | None = None
+    note: str | None = None
+    created_at: str
+
+
 # --- Parcels ---
 
 class ParcelResponse(BaseModel):
@@ -340,3 +409,31 @@ class UpdateWarehouseRequest(BaseModel):
     name: str
     lat: float
     lng: float
+
+
+# --- Delivery Routes ---
+
+class DeliveryRouteResponse(BaseModel):
+    id: str
+    driver_id: str
+    driver_name: str
+    hub_id: str
+    hub_name: str
+    hub_lat: float
+    hub_lng: float
+    status: int
+    total_distance_km: float
+    created_at: str
+
+
+class RouteStopResponse(BaseModel):
+    id: str
+    route_id: str
+    parcel_id: str
+    tracking_number: str
+    status: int
+    sequence: int
+    lat: float
+    lng: float
+    failed_reason: int | None
+    completed_at: str | None

@@ -4,8 +4,8 @@ from .models import (
     Truck, TruckStatus,
     TruckTrip, TruckTripItem, TruckTripStatus,
 )
-from .queries import HubQuery, ParcelQuery, TruckQuery
-from .repository import HubRepository, ParcelRepository, TruckRepository
+from .queries import HubQuery, ParcelQuery, TruckQuery, TruckTripQuery
+from .repository import HubRepository, ParcelRepository, TruckRepository, TruckTripItemRepository, TruckTripRepository
 from .validators import validate_hub, validate_parcel, validate_truck, validate_truck_trip, validate_truck_trip_item
 
 __all__ = [
@@ -14,6 +14,7 @@ __all__ = [
     "Parcel", "ParcelStatus",
     "Truck", "TruckStatus",
     "TruckTrip", "TruckTripItem", "TruckTripStatus",
-    "HubRepository", "ParcelRepository", "TruckRepository",
+    "HubRepository", "ParcelRepository", "TruckRepository", "TruckTripRepository", "TruckTripItemRepository",
+    "TruckTripQuery",
     "validate_hub", "validate_parcel", "validate_truck", "validate_truck_trip", "validate_truck_trip_item",
 ]

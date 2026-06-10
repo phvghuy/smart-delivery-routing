@@ -90,6 +90,11 @@ class TruckTrip:
     created_at: datetime
     actual_departure_time: datetime | None = None
     actual_arrival_time: datetime | None = None
+    deleted_at: datetime | None = None
+    # denormalized — populated from DB join, not domain logic
+    truck_plate_number: str = ""
+    origin_hub_name: str = ""
+    destination_hub_name: str = ""
 
 
 @dataclass

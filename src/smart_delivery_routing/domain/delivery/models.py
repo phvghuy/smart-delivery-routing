@@ -3,7 +3,7 @@ from datetime import datetime
 from enum import IntEnum
 from uuid import UUID
 
-from ..shared.value_objects import Capacity
+from ..shared.value_objects import Capacity, Location
 
 
 class DriverStatus(IntEnum):
@@ -47,6 +47,11 @@ class DeliveryRoute:
     status: DeliveryRouteStatus
     total_distance_km: float
     created_at: datetime
+    # denormalized from DB joins
+    driver_name: str = ""
+    hub_name: str = ""
+    hub_lat: float = 0.0
+    hub_lng: float = 0.0
 
 
 class RouteStopStatus(IntEnum):
@@ -70,5 +75,7 @@ class RouteStop:
     parcel_id: UUID
     status: RouteStopStatus
     sequence: int
+    location: Location
     failed_reason: FailedReason | None = None
     completed_at: datetime | None = None
+    tracking_number: str = ""  # denormalized from parcels join

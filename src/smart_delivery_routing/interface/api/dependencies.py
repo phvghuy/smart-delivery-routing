@@ -3,8 +3,9 @@ from fastapi.security import HTTPBearer
 from supabase import Client
 
 from smart_delivery_routing.application.services import AuthService, JobService, NotificationService
-from smart_delivery_routing.domain.delivery import DriverRepository
-from smart_delivery_routing.domain.linehaul import HubRepository, ParcelRepository, TruckRepository
+from smart_delivery_routing.domain.delivery import DeliveryRouteRepository, DriverRepository, RouteStopRepository
+from smart_delivery_routing.domain.linehaul import HubRepository, ParcelRepository, TruckRepository, TruckTripItemRepository, TruckTripRepository
+from smart_delivery_routing.domain.tracking import TrackingEventRepository
 from smart_delivery_routing.domain.notification import NotificationRepository
 from smart_delivery_routing.domain.shipping import ShippingRequestRepository
 from smart_delivery_routing.infrastructure.fcm_notification_service import FCMNotificationService
@@ -15,12 +16,16 @@ from smart_delivery_routing.infrastructure.websocket import ConnectionManager
 from smart_delivery_routing.infrastructure.supabase.auth_service import SupabaseAuthService
 from smart_delivery_routing.infrastructure.supabase.client import get_supabase_client
 from smart_delivery_routing.infrastructure.supabase.repositories.auth import get_user_id, get_user_role
+from smart_delivery_routing.infrastructure.supabase.repositories.delivery_routes import SupabaseDeliveryRouteRepository, SupabaseRouteStopRepository
 from smart_delivery_routing.infrastructure.supabase.repositories.drivers import SupabaseDriverRepository
 from smart_delivery_routing.infrastructure.supabase.repositories.hubs import SupabaseHubRepository
 from smart_delivery_routing.infrastructure.supabase.repositories.trucks import SupabaseTruckRepository
 from smart_delivery_routing.infrastructure.supabase.repositories.notifications import SupabaseNotificationRepository
 from smart_delivery_routing.infrastructure.supabase.repositories.parcels import SupabaseParcelRepository
+from smart_delivery_routing.infrastructure.supabase.repositories.truck_trip_items import SupabaseTruckTripItemRepository
+from smart_delivery_routing.infrastructure.supabase.repositories.truck_trips import SupabaseTruckTripRepository
 from smart_delivery_routing.infrastructure.supabase.repositories.shipping_requests import SupabaseShippingRequestRepository
+from smart_delivery_routing.infrastructure.supabase.repositories.tracking_events import SupabaseTrackingEventRepository
 
 # TODO: restore after domain.models migration
 # from smart_delivery_routing.application.services import DistanceCalculator, RouteSolver
@@ -62,6 +67,18 @@ def get_parcel_repo(token=Depends(_security)) -> ParcelRepository:
     return SupabaseParcelRepository(_authed_client(token.credentials))
 
 
+def get_truck_trip_repo(token=Depends(_security)) -> TruckTripRepository:
+    return SupabaseTruckTripRepository(_authed_client(token.credentials))
+
+
+def get_truck_trip_item_repo(token=Depends(_security)) -> TruckTripItemRepository:
+    return SupabaseTruckTripItemRepository(_authed_client(token.credentials))
+
+
+def get_tracking_event_repo(token=Depends(_security)) -> TrackingEventRepository:
+    return SupabaseTrackingEventRepository(_authed_client(token.credentials))
+
+
 def get_shipping_request_repo(token=Depends(_security)) -> ShippingRequestRepository:
     return SupabaseShippingRequestRepository(_authed_client(token.credentials))
 
@@ -76,6 +93,14 @@ def get_hub_repo(token=Depends(_security)) -> HubRepository:
 
 def get_driver_repo(token=Depends(_security)) -> DriverRepository:
     return SupabaseDriverRepository(_authed_client(token.credentials))
+
+
+def get_delivery_route_repo(token=Depends(_security)) -> DeliveryRouteRepository:
+    return SupabaseDeliveryRouteRepository(_authed_client(token.credentials))
+
+
+def get_route_stop_repo(token=Depends(_security)) -> RouteStopRepository:
+    return SupabaseRouteStopRepository(_authed_client(token.credentials))
 
 
 def get_notification_repo(token=Depends(_security)) -> NotificationRepository:

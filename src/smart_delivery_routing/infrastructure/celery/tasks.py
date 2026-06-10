@@ -1,123 +1,58 @@
-from smart_delivery_routing.application.solvers.nearest_neighbor import NearestNeighborSolver
-from smart_delivery_routing.application.routing_use_cases import NoPendingOrders, OptimizeRoutesInput, optimize_routes
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+from smart_delivery_routing.application.delivery_route_use_cases import create_delivery_routes
 from smart_delivery_routing.config import OSRM_URL
 from smart_delivery_routing.infrastructure.celery import celery_app
 from smart_delivery_routing.infrastructure.fcm_notification_service import FCMNotificationService
 from smart_delivery_routing.infrastructure.osrm.distance import OSRMDistanceCalculator
-from smart_delivery_routing.infrastructure.osrm.geometry import get_road_geometry
-from smart_delivery_routing.infrastructure.supabase.client import get_supabase_client
+from smart_delivery_routing.infrastructure.supabase.client import get_supabase_service_client
+from smart_delivery_routing.infrastructure.supabase.repositories.delivery_routes import (
+    SupabaseDeliveryRouteRepository, SupabaseRouteStopRepository,
+)
 from smart_delivery_routing.infrastructure.supabase.repositories.drivers import SupabaseDriverRepository
 from smart_delivery_routing.infrastructure.supabase.repositories.notifications import SupabaseNotificationRepository
-from smart_delivery_routing.infrastructure.supabase.repositories.orders import SupabaseOrderRepository
-from smart_delivery_routing.infrastructure.supabase.repositories.vehicles import SupabaseVehicleRepository
-from smart_delivery_routing.infrastructure.supabase.repositories.warehouses import SupabaseWarehouseRepository
-from smart_delivery_routing.infrastructure.supabase.repositories.routes import SupabaseRouteRepository
+from smart_delivery_routing.infrastructure.supabase.repositories.parcels import SupabaseParcelRepository
+from smart_delivery_routing.infrastructure.supabase.repositories.shipping_requests import SupabaseShippingRequestRepository
 
-_solver = NearestNeighborSolver()
+_VN_TZ = ZoneInfo("Asia/Ho_Chi_Minh")
 _distance_calculator = OSRMDistanceCalculator(base_url=OSRM_URL)
 
 
-def _send_route_notifications(client, routes, job_id: str) -> None:
+@celery_app.task(name="create_delivery_routes")
+def run_create_delivery_routes() -> None:
+    now_vn = datetime.now(_VN_TZ)
+    if not (8 <= now_vn.hour < 18):
+        return
+
+    client = get_supabase_service_client()
+
+    parcel_repo = SupabaseParcelRepository(client)
     driver_repo = SupabaseDriverRepository(client)
+    shipping_request_repo = SupabaseShippingRequestRepository(client)
+    route_repo = SupabaseDeliveryRouteRepository(client)
+    stop_repo = SupabaseRouteStopRepository(client)
     notification_service = FCMNotificationService(SupabaseNotificationRepository(client))
-    for route in routes:
-        if not route.stops:
-            continue
-        driver = driver_repo.get_driver_by_vehicle_id(route.vehicle_id)
-        if driver is None or driver.fcm_token is None:
-            continue
-        notification_service.send_route_notification(
-            driver_id=driver.driver_id,
-            fcm_token=driver.fcm_token,
-            vehicle_id=route.vehicle_id,
-            stops_count=len(route.stops),
-            distance_km=route.total_distance,
-            job_id=job_id,
-        )
 
-
-def _build_geometry(vehicle_id, stops, vehicle_start_warehouse, vehicle_end_warehouse, warehouse_map):
-    if not stops:
-        return []
-    start_wh = warehouse_map.get(vehicle_start_warehouse.get(vehicle_id, ""))
-    end_wh = warehouse_map.get(vehicle_end_warehouse.get(vehicle_id, ""))
-    waypoints = []
-    if start_wh:
-        waypoints.append((start_wh.location.lat, start_wh.location.lng))
-    waypoints.extend((s.location.lat, s.location.lng) for s in stops)
-    if end_wh:
-        waypoints.append((end_wh.location.lat, end_wh.location.lng))
-    return get_road_geometry(waypoints)
-
-
-@celery_app.task(name="optimize", bind=True, throws=(NoPendingOrders,))
-def run_optimize(self, token: str) -> dict:
-    client = get_supabase_client()
-    client.postgrest.auth(token)
-
-    order_repo = SupabaseOrderRepository(client)
-    vehicle_repo = SupabaseVehicleRepository(client)
-    warehouse_repo = SupabaseWarehouseRepository(client)
-    route_repo = SupabaseRouteRepository(client)
-
-    orders = order_repo.get_orders()
-    vehicles = vehicle_repo.get_vehicles()
-    warehouses = warehouse_repo.get_warehouses()
-
-    # Capture before solver mutates vehicle.current_warehouse_id
-    vehicle_start_warehouse = {v.vehicle_id: v.current_warehouse_id for v in vehicles}
-    warehouse_map = {w.warehouse_id: w for w in warehouses}
-
-    output = optimize_routes(
-        OptimizeRoutesInput(orders=orders, vehicles=vehicles, warehouses=warehouses),
-        _solver,
-        _distance_calculator,
-        order_repo,
-        vehicle_repo,
+    routes = create_delivery_routes(
+        parcel_repo=parcel_repo,
+        driver_repo=driver_repo,
+        shipping_request_repo=shipping_request_repo,
+        route_repo=route_repo,
+        stop_repo=stop_repo,
+        distance_calculator=_distance_calculator,
     )
 
-    # After optimize_routes, vehicles are mutated — current_warehouse_id is now the ending warehouse
-    vehicle_end_warehouse = {v.vehicle_id: v.current_warehouse_id for v in vehicles}
-
-    _send_route_notifications(client, output.result.routes, self.request.id)
-
-    # Assign job_id for orders
-    assigned_ids = [s.order_id for r in output.result.routes for s in r.stops]
-    order_repo.update_job_id(assigned_ids, self.request.id)
-
-    route_repo.save_routes(self.request.id, output.result.routes)
-
-    return {
-        "results": [
-            {
-                "solver": "nearest_neighbor",
-                "routes": [
-                    {
-                        "vehicle_id": r.vehicle_id,
-                        "stops": [{"order_id": s.order_id, "lat": s.location.lat, "lng": s.location.lng} for s in r.stops],
-                        "total_distance_km": r.total_distance,
-                        "geometry": _build_geometry(r.vehicle_id, r.stops, vehicle_start_warehouse, vehicle_end_warehouse, warehouse_map),
-                    }
-                    for r in output.result.routes
-                ],
-                "unassigned_orders": output.result.unassigned_orders,
-                "kpi": {
-                    "total_distance_km": output.kpi.total_distance_km,
-                    "vehicles_used": output.kpi.vehicles_used,
-                    "unassigned_count": output.kpi.unassigned_count,
-                    "average_fill_rate_weight": output.kpi.average_fill_rate_weight,
-                    "average_fill_rate_volume": output.kpi.average_fill_rate_volume,
-                    "per_vehicle": [
-                        {
-                            "vehicle_id": v.vehicle_id,
-                            "stops_count": v.stops_count,
-                            "distance_km": v.distance_km,
-                            "fill_rate_weight": v.fill_rate_weight,
-                            "fill_rate_volume": v.fill_rate_volume,
-                        }
-                        for v in output.kpi.per_vehicle
-                    ],
-                },
-            }
-        ]
-    }
+    for route in routes:
+        driver = driver_repo.get_by_id(route.driver_id)
+        if driver is None or not driver.fcm_token:
+            continue
+        stops = stop_repo.list_by_route_id(route.id)
+        notification_service.send_route_notification(
+            driver_id=str(route.driver_id),
+            fcm_token=driver.fcm_token,
+            vehicle_id=str(route.id),
+            stops_count=len(stops),
+            distance_km=route.total_distance_km,
+            job_id=str(route.id),
+        )

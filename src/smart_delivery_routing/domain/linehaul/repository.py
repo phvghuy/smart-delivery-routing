@@ -1,16 +1,24 @@
 from abc import ABC, abstractmethod
 from uuid import UUID
 
-from .models import Hub, Parcel, ParcelStatus, Truck, TruckTrip, TruckTripItem
-from .queries import HubQuery, ParcelQuery, TruckQuery
+from .models import Hub, Parcel, Truck, TruckTrip, TruckTripItem
+from .queries import HubQuery, ParcelQuery, TruckQuery, TruckTripQuery
+from ..shared import Load
 
 
 class ParcelRepository(ABC):
     @abstractmethod
+    def create(self, parcel: Parcel) -> Parcel: ...
+
+    @abstractmethod
     def get_by_id(self, parcel_id: UUID) -> Parcel | None: ...
+
 
     @abstractmethod
     def list(self, query: ParcelQuery) -> list[Parcel]: ...
+
+    @abstractmethod
+    def update(self, parcel: Parcel) -> Parcel: ...
 
 
 class HubRepository(ABC):
@@ -45,4 +53,38 @@ class TruckRepository(ABC):
 
     @abstractmethod
     def delete(self, truck_id: UUID) -> None: ...
+
+
+class TruckTripRepository(ABC):
+    @abstractmethod
+    def create(self, trip: TruckTrip) -> TruckTrip: ...
+
+    @abstractmethod
+    def get_by_id(self, trip_id: UUID) -> TruckTrip | None: ...
+
+    @abstractmethod
+    def list(self, query: TruckTripQuery) -> tuple[list[TruckTrip], int]: ...
+
+    @abstractmethod
+    def update(self, trip: TruckTrip) -> TruckTrip: ...
+
+    @abstractmethod
+    def delete(self, trip_id: UUID) -> None: ...
+
+
+class TruckTripItemRepository(ABC):
+    @abstractmethod
+    def create(self, item: TruckTripItem) -> TruckTripItem: ...
+
+    @abstractmethod
+    def get_by_id(self, item_id: UUID) -> TruckTripItem | None: ...
+
+    @abstractmethod
+    def list_by_trip_id(self, trip_id: UUID) -> list[TruckTripItem]: ...
+
+    @abstractmethod
+    def get_used_load_by_trip_id(self, trip_id: UUID) -> Load: ...
+
+    @abstractmethod
+    def delete(self, item_id: UUID) -> None: ...
 

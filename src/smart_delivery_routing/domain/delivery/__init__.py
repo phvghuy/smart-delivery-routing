@@ -4,7 +4,7 @@ from .models import (
     FailedReason, RouteStop, RouteStopStatus,
 )
 from .queries import DriverQuery
-from .repository import DriverRepository
+from .repository import DeliveryRouteRepository, DriverRepository, RouteStopRepository
 from .validators import validate_delivery_route, validate_driver, validate_route_stop
 
 __all__ = [
@@ -12,6 +12,6 @@ __all__ = [
     "Driver", "DriverProfile", "DriverStatus",
     "FailedReason", "RouteStop", "RouteStopStatus",
     "DriverQuery",
-    "DriverRepository",
+    "DeliveryRouteRepository", "DriverRepository", "RouteStopRepository",
     "validate_delivery_route", "validate_driver", "validate_route_stop",
 ]

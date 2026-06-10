@@ -15,7 +15,7 @@ from smart_delivery_routing.infrastructure.firebase import initialize_firebase
 #     WarehouseAlreadyExists, WarehouseHasActiveOrders, WarehouseNotFound,
 # )
 
-from .routers import auth, drivers, hubs, notifications, parcels, shipping_requests, trucks, ws
+from .routers import auth, delivery_routes, drivers, hubs, notifications, parcels, shipping_requests, truck_trips, trucks, ws
 
 # TODO: restore after domain.models migration
 # from .routers import imports, jobs, optimize, orders, vehicles, warehouses
@@ -37,8 +37,10 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(drivers.router)
+app.include_router(delivery_routes.router)
 app.include_router(hubs.router)
 app.include_router(trucks.router)
+app.include_router(truck_trips.router)
 app.include_router(shipping_requests.router)
 app.include_router(parcels.router)
 app.include_router(notifications.router)

@@ -47,3 +47,13 @@ services:
     depends_on:
       - redis
       - osrm
+
+  beat:
+    build: .
+    command: celery -A smart_delivery_routing.infrastructure.celery beat --loglevel=info
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      OSRM_URL: http://osrm:5000
+    depends_on:
+      - redis

@@ -5,8 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from smart_delivery_routing.application import parcel_use_cases
 from smart_delivery_routing.application.parcel_use_cases import ParcelNotFound
 from smart_delivery_routing.domain.linehaul import Parcel, ParcelQuery, ParcelRepository, ParcelStatus
-from ..dependencies import get_parcel_repo, require_admin
-from ..schemas import CursorPagedParcelResponse, ParcelResponse
+from smart_delivery_routing.domain.tracking import TrackingEvent, TrackingEventRepository
+from ..dependencies import get_parcel_repo, get_tracking_event_repo, require_admin
+from ..schemas import CursorPagedParcelResponse, ParcelResponse, TrackingEventResponse
 
 router = APIRouter(prefix="/parcels", tags=["parcels"])
 
@@ -49,6 +50,19 @@ def list_parcels(
     )
 
 
+def _to_event_response(e: TrackingEvent) -> TrackingEventResponse:
+    return TrackingEventResponse(
+        id=str(e.id),
+        parcel_id=str(e.parcel_id),
+        status=e.status.value,
+        location_kind=e.location.kind.value,
+        location_name=e.location.name,
+        location_id=str(e.location.id) if e.location.id else None,
+        note=e.note,
+        created_at=e.created_at.isoformat(),
+    )
+
+
 @router.get("/{parcel_id}", response_model=ParcelResponse)
 def get_parcel(
     parcel_id: str,
@@ -60,3 +74,18 @@ def get_parcel(
     except ParcelNotFound as e:
         raise HTTPException(status_code=404, detail=str(e))
     return _to_response(parcel)
+
+
+@router.get("/{parcel_id}/tracking-events", response_model=list[TrackingEventResponse])
+def list_tracking_events(
+    parcel_id: str,
+    parcel_repo: ParcelRepository = Depends(get_parcel_repo),
+    tracking_repo: TrackingEventRepository = Depends(get_tracking_event_repo),
+    _: None = Depends(require_admin),
+) -> list[TrackingEventResponse]:
+    try:
+        parcel_use_cases.get_parcel(UUID(parcel_id), parcel_repo)
+    except ParcelNotFound as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    events = tracking_repo.list_by_parcel_id(UUID(parcel_id))
+    return [_to_event_response(e) for e in events]

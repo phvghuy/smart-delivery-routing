@@ -1,13 +1,12 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-# TODO: restore after domain.models migration
-# from smart_delivery_routing.domain.models import Location, Order, RoutingResult, Vehicle, Warehouse
+from smart_delivery_routing.domain.shared import Location
 
 
-# class DistanceCalculator(ABC):
-#     @abstractmethod
-#     def compute_matrix(self, locations: list[Location]) -> list[list[float]]: ...
+class DistanceCalculator(ABC):
+    @abstractmethod
+    def compute_matrix(self, locations: list[Location]) -> list[list[float]]: ...
 
 
 # class RouteSolver(ABC):

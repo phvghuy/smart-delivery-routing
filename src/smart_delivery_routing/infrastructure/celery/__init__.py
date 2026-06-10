@@ -14,4 +14,11 @@ celery_app.conf.update(
     result_serializer="json",
     accept_content=["json"],
     result_expires=86400,
+    beat_schedule={
+        "create-delivery-routes": {
+            "task": "create_delivery_routes",
+            "schedule": 1800.0,  # 30 phút
+        },
+    },
+    timezone="Asia/Ho_Chi_Minh",
 )

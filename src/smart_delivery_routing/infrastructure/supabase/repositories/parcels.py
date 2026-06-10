@@ -18,6 +18,14 @@ class SupabaseParcelRepository(ParcelRepository):
     def __init__(self, client: Client) -> None:
         self._client = client
 
+    def create(self, parcel: Parcel) -> Parcel:
+        self._client.table("parcels").insert({
+            "id": str(parcel.id),
+            **self._to_row(parcel),
+            "created_at": parcel.created_at.isoformat(),
+        }).execute()
+        return parcel
+
     def get_by_id(self, parcel_id: UUID) -> Parcel | None:
         response = (
             self._client.table("parcels")
@@ -52,6 +60,28 @@ class SupabaseParcelRepository(ParcelRepository):
 
         response = q.execute()
         return [self._to_model(row) for row in response.data]
+    
+    def update(self, parcel: Parcel) -> Parcel:
+        response = (
+            self._client.table("parcels")
+            .update(self._to_row(parcel))
+            .eq("id", str(parcel.id))
+            .execute()
+        )
+        return self._to_model(response.data[0])
+
+    @staticmethod
+    def _to_row(parcel: Parcel) -> dict:
+        return {
+            "shipping_request_id": str(parcel.shipping_request_id),
+            "tracking_number": parcel.tracking_number,
+            "origin_hub_id": str(parcel.origin_hub_id),
+            "destination_hub_id": str(parcel.destination_hub_id),
+            "current_hub_id": str(parcel.current_hub_id) if parcel.current_hub_id else None,
+            "weight": parcel.load.weight,
+            "volume": parcel.load.volume,
+            "status": parcel.status.value,
+        }
 
     @staticmethod
     def _to_model(row: dict) -> Parcel:

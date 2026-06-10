@@ -7,7 +7,7 @@ class SupabaseNotificationRepository(NotificationRepository):
     def __init__(self, client: Client) -> None:
         self._client = client
 
-    def create_notification(self, notification: Notification) -> Notification:
+    def create(self, notification: Notification) -> Notification:
         row = {
             "driver_id": notification.driver_id,
             "title": notification.title,
@@ -17,7 +17,7 @@ class SupabaseNotificationRepository(NotificationRepository):
         response = self._client.table("notifications").insert(row).execute()
         return self._to_model(response.data[0])
 
-    def get_notifications_by_driver(self, driver_id: str) -> list[Notification]:
+    def get_by_driver(self, driver_id: str) -> list[Notification]:
         response = (
             self._client.table("notifications")
             .select("*")

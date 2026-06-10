@@ -9,9 +9,9 @@ from ..linehaul import ParcelStatus
 class TrackingLocationType(IntEnum):
     SYSTEM = 1
     HUB = 2
-    TRUCK_TRIP = 3
-    DRIVER = 4
-    CUSTOMER = 5
+    DRIVER = 3
+    CUSTOMER = 4
+    TRUCK_TRIP = 5
 
 
 @dataclass(frozen=True)
