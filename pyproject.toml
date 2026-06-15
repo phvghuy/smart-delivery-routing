@@ -17,6 +17,7 @@ dependencies = [
     "structlog>=25.5.0",
     "supabase>=2.30.0",
     "uvicorn>=0.46.0",
+    "watchfiles>=0.19",
     "celery>=5.6.3",
     "redis>=7.4.0",
     "firebase-admin>=7.4.0",

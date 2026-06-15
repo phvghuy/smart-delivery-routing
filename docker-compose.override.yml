@@ -1,0 +1,10 @@
+# Dev overrides — loaded automatically by docker-compose up.
+# Mounts source code as live volumes so uvicorn --reload picks up changes.
+# Production: docker-compose -f docker-compose.yml up
+services:
+  api:
+    volumes:
+      - ./src:/app/src
+      - ./main.py:/app/main.py
+    depends_on:
+      - redis
