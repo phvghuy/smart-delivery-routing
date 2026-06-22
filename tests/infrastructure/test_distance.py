@@ -1,6 +1,6 @@
 import pytest
 
-from smart_delivery_routing.domain.models import Location
+from smart_delivery_routing.domain.shared import Location
 from smart_delivery_routing.infrastructure.haversine import HaversineDistanceCalculator
 
 HANOI = Location(lat=21.0285, lng=105.8542)

@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
 
     steps:
@@ -25,5 +25,25 @@ jobs:
       - name: Lint
         run: uv run ruff check src/
 
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
       - name: Run unit tests
-        run: uv run pytest tests/ -m "not integration" --tb=short -q
+        run: |
+          uv run pytest tests/ -m "not integration" \
+            --tb=short \
+            --cov=src/smart_delivery_routing \
+            --cov-report=term-missing \
+            --cov-fail-under=30
