@@ -1,6 +1,16 @@
 name: ecom-logistics
 
 services:
+  # Jaeger v2: backend lưu trữ và hiển thị distributed traces
+  # Sau khi chạy, mở trình duyệt vào http://localhost:16686 để xem traces
+  # Dùng v2 vì v1 (all-in-one:latest) đã EOL và UI bị lỗi trên trình duyệt mới
+  jaeger:
+    image: jaegertracing/jaeger:2.7.0
+    ports:
+      - "16686:16686"   # Jaeger UI — nơi bạn xem traces trực quan
+      - "4317:4317"     # OTLP gRPC — app Python gửi traces vào cổng này
+    # v2 bật OTLP sẵn, không cần COLLECTOR_OTLP_ENABLED như v1
+
   redis:
     image: redis:7-alpine
     ports:
@@ -24,6 +34,11 @@ services:
       REDIS_URL: redis://redis:6379/0
       OSRM_URL: http://osrm:5000
       FIREBASE_CREDENTIALS: /app/firebase-service-account.json
+      # Địa chỉ Jaeger để app gửi traces tới
+      # "jaeger" là tên service bên trên — Docker tự resolve thành IP nội bộ
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      # Tên service xuất hiện trong Jaeger UI để phân biệt với các app khác
+      OTEL_SERVICE_NAME: smart-delivery-routing
     volumes:
       - ./firebase-service-account.json:/app/firebase-service-account.json:ro
     dns:
@@ -32,6 +47,7 @@ services:
     depends_on:
       - redis
       - osrm
+      - jaeger  # api phải chờ jaeger khởi động trước
 
   worker:
     build: .

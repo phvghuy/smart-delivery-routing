@@ -6,14 +6,11 @@ requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.136.1",
     "httpx>=0.28.1",
-    "folium>=0.20.0",
     "numpy>=2.4.4",
     "ortools>=9.15.6755",
     "pandas>=3.0.2",
     "python-dotenv>=1.2.2",
     "python-multipart>=0.0.27",
-    "streamlit>=1.57.0",
-    "streamlit-folium>=0.27.2",
     "structlog>=25.5.0",
     "supabase>=2.30.0",
     "uvicorn>=0.46.0",
@@ -21,6 +18,12 @@ dependencies = [
     "celery>=5.6.3",
     "redis>=7.4.0",
     "firebase-admin>=7.4.0",
+    # OpenTelemetry: bộ SDK chuẩn để tạo và gửi traces
+    "opentelemetry-api>=1.33.0",              # API cốt lõi: Tracer, Span, Context
+    "opentelemetry-sdk>=1.33.0",              # Implement của API: xử lý và export traces
+    "opentelemetry-instrumentation-fastapi>=0.54b0",  # Tự động tạo span cho mỗi HTTP request
+    "opentelemetry-instrumentation-httpx>=0.54b0",    # Tự động tạo span cho mỗi HTTP call ra ngoài
+    "opentelemetry-exporter-otlp-proto-grpc>=1.33.0", # Gửi traces tới Jaeger qua gRPC
 ]
 
 [tool.setuptools.packages.find]
