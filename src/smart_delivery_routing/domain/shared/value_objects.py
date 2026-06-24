@@ -21,7 +21,7 @@ class Load:
 
 @dataclass(frozen=True)
 class Money:
-    amount: int
+    amount: float
     currency: str = "VND"
 
 

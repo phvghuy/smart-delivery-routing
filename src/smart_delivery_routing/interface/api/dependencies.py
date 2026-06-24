@@ -2,7 +2,8 @@ from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer
 from supabase import Client
 
-from smart_delivery_routing.application.services import AuthService, NotificationService
+from smart_delivery_routing.application.services import AuthService, JobService, NotificationService
+from smart_delivery_routing.infrastructure.job_service import CeleryRedisJobService
 from smart_delivery_routing.domain.delivery import DeliveryRouteRepository, DriverRepository, RouteStopRepository
 from smart_delivery_routing.domain.linehaul import HubRepository, ParcelRepository, TruckRepository, TruckTripItemRepository, TruckTripRepository
 from smart_delivery_routing.domain.tracking import TrackingEventRepository
@@ -26,6 +27,7 @@ from smart_delivery_routing.infrastructure.supabase.repositories.shipping_reques
 from smart_delivery_routing.infrastructure.supabase.repositories.tracking_events import SupabaseTrackingEventRepository
 
 _auth_service = SupabaseAuthService()
+_job_service = CeleryRedisJobService()
 _ws_manager = ConnectionManager()
 
 _security = HTTPBearer()
@@ -97,6 +99,10 @@ def require_admin(token=Depends(_security)) -> None:
 def require_driver(token=Depends(_security)) -> None:
     if get_user_role(token.credentials) not in ("admin", "driver"):
         raise HTTPException(status_code=403, detail="Authentication required.")
+
+
+def get_job_service() -> JobService:
+    return _job_service
 
 
 def get_auth_service() -> AuthService:

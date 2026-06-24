@@ -57,6 +57,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       OSRM_URL: http://osrm:5000
       FIREBASE_CREDENTIALS: /app/firebase-service-account.json
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+      OTEL_SERVICE_NAME: smart-delivery-routing
     volumes:
       - ./firebase-service-account.json:/app/firebase-service-account.json:ro
     dns:

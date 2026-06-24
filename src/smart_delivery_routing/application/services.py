@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from uuid import UUID
 
 from smart_delivery_routing.domain.shared import Location
 
@@ -46,6 +47,9 @@ class JobService(ABC):
 
     @abstractmethod
     def get_status(self, job_id: str) -> JobStatus: ...
+
+    @abstractmethod
+    def enqueue_process_shipping_request(self, request_id: UUID) -> None: ...
 
 
 class NotificationService(ABC):

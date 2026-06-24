@@ -1,8 +1,10 @@
 import base64
 import json
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from uuid import UUID, uuid4
+from opentelemetry import trace
 
+from smart_delivery_routing.application.services import JobService
 from smart_delivery_routing.domain.linehaul import HubRepository, ParcelRepository
 from smart_delivery_routing.domain.shared import ValidationError
 from smart_delivery_routing.domain.shipping import (
@@ -13,6 +15,9 @@ from smart_delivery_routing.domain.shipping import (
     validate_shipping_request,
 )
 from smart_delivery_routing.domain.tracking import TrackingEventRepository
+
+
+tracer = trace.get_tracer(__name__)
 
 
 @dataclass(frozen=True)
@@ -94,42 +99,59 @@ def list_shipping_requests(
 def create_shipping_request(
     request: ShippingRequest,
     shipping_repo: ShippingRequestRepository,
-    hub_repo: HubRepository,
-    parcel_repo: ParcelRepository,
-    tracking_repo: TrackingEventRepository,
+    job_service: JobService,
 ) -> ShippingRequest:
-    from smart_delivery_routing.application.parcel_use_cases import create_parcel
-
     errors = validate_shipping_request(request)
     if errors:
         raise ValidationFailed(errors=errors)
 
     saved = shipping_repo.create(request)
+    job_service.enqueue_process_shipping_request(saved.id)
+    return saved
 
-    origin_hubs = hub_repo.find_nearest(request.pickup_address.location)
-    dest_hubs = hub_repo.find_nearest(request.delivery_address.location)
-    origin_hub = origin_hubs[0] if origin_hubs else None
-    dest_hub = dest_hubs[0] if dest_hubs else None
 
-    if origin_hub and dest_hub:
-        create_parcel(
-            parcel_id=uuid4(),
-            shipping_request_id=saved.id,
-            origin_hub_id=origin_hub.id,
-            destination_hub_id=dest_hub.id,
-            origin_hub_name=origin_hub.name,
-            destination_hub_name=dest_hub.name,
-            weight=request.load.weight,
-            volume=request.load.volume,
-            parcel_repo=parcel_repo,
-            tracking_repo=tracking_repo,
-        )
-        new_status = ShippingRequestStatus.ACCEPTED
-    else:
-        new_status = ShippingRequestStatus.REJECTED
+def process_shipping_request(
+    request_id: UUID,
+    shipping_repo: ShippingRequestRepository,
+    hub_repo: HubRepository,
+    parcel_repo: ParcelRepository,
+    tracking_repo: TrackingEventRepository,
+) -> None:
+    from smart_delivery_routing.application.parcel_use_cases import create_parcel
 
-    shipping_repo.update_status(saved.id, new_status)
-    return replace(saved, status=new_status)
+    with tracer.start_as_current_span("process_shipping_request"):
+        request = shipping_repo.get_by_id(request_id)
+        if request is None:
+            raise ShippingRequestNotFound(request_id=request_id)
+
+        with tracer.start_as_current_span("hub.find_nearest_origin"):
+            origin_hubs = hub_repo.find_nearest(request.pickup_address.location)
+
+        with tracer.start_as_current_span("hub.find_nearest_destination"):
+            dest_hubs = hub_repo.find_nearest(request.delivery_address.location)
+
+        origin_hub = origin_hubs[0] if origin_hubs else None
+        dest_hub = dest_hubs[0] if dest_hubs else None
+
+        if origin_hub and dest_hub:
+            with tracer.start_as_current_span("parcel.create"):
+                create_parcel(
+                    parcel_id=uuid4(),
+                    shipping_request_id=request_id,
+                    origin_hub_id=origin_hub.id,
+                    destination_hub_id=dest_hub.id,
+                    origin_hub_name=origin_hub.name,
+                    destination_hub_name=dest_hub.name,
+                    weight=request.load.weight,
+                    volume=request.load.volume,
+                    parcel_repo=parcel_repo,
+                    tracking_repo=tracking_repo,
+                )
+            new_status = ShippingRequestStatus.ACCEPTED
+        else:
+            new_status = ShippingRequestStatus.REJECTED
+
+        shipping_repo.update_status(request_id, new_status)
 
 
 def get_shipping_request(request_id: UUID, repo: ShippingRequestRepository) -> ShippingRequest:

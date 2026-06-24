@@ -10,6 +10,21 @@ _JOB_TTL = 86400       # 24 hours
 _MATRIX_TTL = 86400 * 7  # 7 days
 _JOB_KEY_PREFIX = "job:"
 _MATRIX_KEY_PREFIX = "distance-matrix:"
+_HUB_CACHE_KEY = "hubs:active_list"
+_HUB_TTL = 86400 # 24 hours
+
+
+def get_hub_cache() -> list[dict] | None:
+    value = _client.get(_HUB_CACHE_KEY)
+    return json.loads(value) if value else None
+
+
+def set_hub_cache(rows: list[dict]) -> None:
+    _client.setex(_HUB_CACHE_KEY, _HUB_TTL, json.dumps(rows))
+
+
+def invalidate_hub_cache() -> None:
+    _client.delete(_HUB_CACHE_KEY)
 
 
 def register_job(job_id: str) -> None:

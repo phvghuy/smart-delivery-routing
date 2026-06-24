@@ -1,7 +1,9 @@
 from datetime import datetime
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from smart_delivery_routing.application.delivery_route_use_cases import create_delivery_routes
+from smart_delivery_routing.application import shipping_use_cases
 from smart_delivery_routing.config import OSRM_URL
 from smart_delivery_routing.infrastructure.celery import celery_app
 from smart_delivery_routing.infrastructure.fcm_notification_service import FCMNotificationService
@@ -11,12 +13,26 @@ from smart_delivery_routing.infrastructure.supabase.repositories.delivery_routes
     SupabaseDeliveryRouteRepository, SupabaseRouteStopRepository,
 )
 from smart_delivery_routing.infrastructure.supabase.repositories.drivers import SupabaseDriverRepository
+from smart_delivery_routing.infrastructure.supabase.repositories.hubs import SupabaseHubRepository
 from smart_delivery_routing.infrastructure.supabase.repositories.notifications import SupabaseNotificationRepository
 from smart_delivery_routing.infrastructure.supabase.repositories.parcels import SupabaseParcelRepository
 from smart_delivery_routing.infrastructure.supabase.repositories.shipping_requests import SupabaseShippingRequestRepository
+from smart_delivery_routing.infrastructure.supabase.repositories.tracking_events import SupabaseTrackingEventRepository
 
 _VN_TZ = ZoneInfo("Asia/Ho_Chi_Minh")
 _distance_calculator = OSRMDistanceCalculator(base_url=OSRM_URL)
+
+
+@celery_app.task(name="handle_shipping_request")
+def handle_shipping_request(request_id: str) -> None:
+    client = get_supabase_service_client()
+    shipping_use_cases.process_shipping_request(
+        request_id=UUID(request_id),
+        shipping_repo=SupabaseShippingRequestRepository(client),
+        hub_repo=SupabaseHubRepository(client),
+        parcel_repo=SupabaseParcelRepository(client),
+        tracking_repo=SupabaseTrackingEventRepository(client),
+    )
 
 
 @celery_app.task(name="create_delivery_routes")

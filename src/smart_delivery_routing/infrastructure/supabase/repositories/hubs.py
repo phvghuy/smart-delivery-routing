@@ -9,6 +9,7 @@ from smart_delivery_routing.domain.linehaul import Hub, HubRepository, HubStatus
 from smart_delivery_routing.domain.shared import Address, Location
 from smart_delivery_routing.domain.linehaul import HubQuery
 from smart_delivery_routing.infrastructure.haversine import HaversineDistanceCalculator
+from smart_delivery_routing.infrastructure.redis_client import get_hub_cache, set_hub_cache, invalidate_hub_cache
 
 _calculator = HaversineDistanceCalculator()
 
@@ -19,6 +20,7 @@ class SupabaseHubRepository(HubRepository):
 
     def create(self, hub: Hub) -> Hub:
         row = self._client.table("hubs").insert(self._to_row(hub)).execute()
+        invalidate_hub_cache()
         return self._to_model(row.data[0])
     
     def get_by_id(self, hub_id: UUID) -> Hub | None:
@@ -65,22 +67,30 @@ class SupabaseHubRepository(HubRepository):
             .eq("id", str(hub.id))
             .execute()
         )
+        invalidate_hub_cache()
         return self._to_model(response.data[0])
 
     def delete(self, hub_id: UUID) -> None:
         self._client.table("hubs").update(
             {"deleted_at": datetime.now(timezone.utc).isoformat()}
         ).eq("id", str(hub_id)).execute()
+        invalidate_hub_cache()
 
     def find_nearest(self, location: Location, limit: int = 1) -> list[Hub]:
-        response = (
-            self._client.table("hubs")
-            .select("*")
-            .eq("status", HubStatus.ACTIVE.value)
-            .is_("deleted_at", "null")
-            .execute()
-        )
-        hubs = [self._to_model(row) for row in response.data]
+        cached_rows = get_hub_cache()
+
+        if cached_rows is None:
+            response = (
+                self._client.table("hubs")
+                .select("*")
+                .eq("status", HubStatus.ACTIVE.value)
+                .is_("deleted_at", "null")
+                .execute()
+            )
+            cached_rows = response.data
+            set_hub_cache(cached_rows)
+
+        hubs = [self._to_model(row) for row in cached_rows]
         if not hubs:
             return []
         all_locations = [location] + [h.address.location for h in hubs]

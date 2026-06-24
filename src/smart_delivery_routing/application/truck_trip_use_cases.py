@@ -1,6 +1,7 @@
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
+from opentelemetry import trace
 
 from smart_delivery_routing.application.parcel_use_cases import arrive_at_destination_hub, dispatch_linehaul
 from smart_delivery_routing.domain.linehaul import (
@@ -12,6 +13,9 @@ from smart_delivery_routing.domain.linehaul.models import (
 )
 from smart_delivery_routing.domain.shared import ValidationError
 from smart_delivery_routing.domain.tracking import TrackingEventRepository
+
+
+tracer = trace.get_tracer(__name__)
 
 
 # ── Exceptions ────────────────────────────────────────────────────────────────

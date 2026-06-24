@@ -9,11 +9,13 @@ from uuid import UUID, uuid4
 
 import pytest
 
+from smart_delivery_routing.application.services import JobService, JobStatus
 from smart_delivery_routing.application.shipping_use_cases import (
     InvalidStatusTransition,
     ShippingRequestNotFound,
     ValidationFailed,
     create_shipping_request,
+    process_shipping_request,
     get_shipping_request,
     update_shipping_status,
 )
@@ -90,6 +92,17 @@ class FakeTrackingRepo(TrackingEventRepository):
     def list_by_parcel_id(self, parcel_id: UUID) -> list[TrackingEvent]: return []
 
 
+class FakeJobService(JobService):
+    def __init__(self):
+        self.enqueued: list[UUID] = []
+
+    def submit(self, token: str) -> str: return ""
+    def get_status(self, job_id: str) -> JobStatus: return JobStatus(job_id=job_id, status="pending")
+
+    def enqueue_process_shipping_request(self, request_id: UUID) -> None:
+        self.enqueued.append(request_id)
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _make_hub(name: str = "Hub A") -> Hub:
@@ -118,83 +131,116 @@ def _make_request(**overrides) -> ShippingRequest:
     return ShippingRequest(**{**defaults, **overrides})
 
 
-def _repos(hubs: list[Hub]):
-    """Trả về bộ 4 repo dùng chung trong các test."""
-    return (
-        FakeShippingRepo(),
-        FakeHubRepo(hubs),
-        FakeParcelRepo(),
-        FakeTrackingRepo(),
-    )
+def _make_repos(hubs: list[Hub]):
+    return FakeShippingRepo(), FakeHubRepo(hubs), FakeParcelRepo(), FakeTrackingRepo()
 
 
 # ── create_shipping_request ───────────────────────────────────────────────────
 
-def test_create_accepted_when_both_hubs_found():
-    shipping_repo, hub_repo, parcel_repo, tracking_repo = _repos([_make_hub()])
+def test_create_saves_with_created_status():
+    shipping_repo = FakeShippingRepo()
+    job_service = FakeJobService()
 
-    result = create_shipping_request(
-        _make_request(), shipping_repo, hub_repo, parcel_repo, tracking_repo
-    )
+    result = create_shipping_request(_make_request(), shipping_repo, job_service)
 
-    assert result.status == ShippingRequestStatus.ACCEPTED
+    assert result.status == ShippingRequestStatus.CREATED
 
 
-def test_create_accepted_creates_parcel():
-    shipping_repo, hub_repo, parcel_repo, tracking_repo = _repos([_make_hub()])
+def test_create_enqueues_job():
+    shipping_repo = FakeShippingRepo()
+    job_service = FakeJobService()
+    request = _make_request()
 
-    create_shipping_request(
-        _make_request(), shipping_repo, hub_repo, parcel_repo, tracking_repo
-    )
+    create_shipping_request(request, shipping_repo, job_service)
+
+    assert request.id in job_service.enqueued
+
+
+def test_create_raises_validation_failed_on_bad_data():
+    shipping_repo = FakeShippingRepo()
+    job_service = FakeJobService()
+
+    with pytest.raises(ValidationFailed):
+        create_shipping_request(_make_request(external_order_id=""), shipping_repo, job_service)
+
+
+def test_create_validation_failed_does_not_save():
+    shipping_repo = FakeShippingRepo()
+    job_service = FakeJobService()
+
+    with pytest.raises(ValidationFailed):
+        create_shipping_request(_make_request(external_order_id=""), shipping_repo, job_service)
+
+    assert len(shipping_repo._store) == 0
+
+
+def test_create_validation_failed_does_not_enqueue():
+    shipping_repo = FakeShippingRepo()
+    job_service = FakeJobService()
+
+    with pytest.raises(ValidationFailed):
+        create_shipping_request(_make_request(external_order_id=""), shipping_repo, job_service)
+
+    assert len(job_service.enqueued) == 0
+
+
+# ── process_shipping_request ──────────────────────────────────────────────────
+
+def test_process_accepted_when_both_hubs_found():
+    shipping_repo, hub_repo, parcel_repo, tracking_repo = _make_repos([_make_hub()])
+    request = _make_request()
+    shipping_repo.create(request)
+
+    process_shipping_request(request.id, shipping_repo, hub_repo, parcel_repo, tracking_repo)
+
+    assert shipping_repo.get_by_id(request.id).status == ShippingRequestStatus.ACCEPTED
+
+
+def test_process_accepted_creates_parcel():
+    shipping_repo, hub_repo, parcel_repo, tracking_repo = _make_repos([_make_hub()])
+    request = _make_request()
+    shipping_repo.create(request)
+
+    process_shipping_request(request.id, shipping_repo, hub_repo, parcel_repo, tracking_repo)
 
     assert len(parcel_repo.created) == 1
 
 
-def test_create_parcel_links_to_shipping_request():
+def test_process_parcel_links_to_shipping_request():
+    shipping_repo, hub_repo, parcel_repo, tracking_repo = _make_repos([_make_hub()])
     request = _make_request()
-    shipping_repo, hub_repo, parcel_repo, tracking_repo = _repos([_make_hub()])
+    shipping_repo.create(request)
 
-    create_shipping_request(request, shipping_repo, hub_repo, parcel_repo, tracking_repo)
+    process_shipping_request(request.id, shipping_repo, hub_repo, parcel_repo, tracking_repo)
 
     assert parcel_repo.created[0].shipping_request_id == request.id
 
 
-def test_create_rejected_when_no_hubs():
-    shipping_repo, hub_repo, parcel_repo, tracking_repo = _repos([])  # không có hub
+def test_process_rejected_when_no_hubs():
+    shipping_repo, hub_repo, parcel_repo, tracking_repo = _make_repos([])
+    request = _make_request()
+    shipping_repo.create(request)
 
-    result = create_shipping_request(
-        _make_request(), shipping_repo, hub_repo, parcel_repo, tracking_repo
-    )
+    process_shipping_request(request.id, shipping_repo, hub_repo, parcel_repo, tracking_repo)
 
-    assert result.status == ShippingRequestStatus.REJECTED
+    assert shipping_repo.get_by_id(request.id).status == ShippingRequestStatus.REJECTED
 
 
-def test_create_rejected_does_not_create_parcel():
-    shipping_repo, hub_repo, parcel_repo, tracking_repo = _repos([])
+def test_process_rejected_does_not_create_parcel():
+    shipping_repo, hub_repo, parcel_repo, tracking_repo = _make_repos([])
+    request = _make_request()
+    shipping_repo.create(request)
 
-    create_shipping_request(
-        _make_request(), shipping_repo, hub_repo, parcel_repo, tracking_repo
-    )
+    process_shipping_request(request.id, shipping_repo, hub_repo, parcel_repo, tracking_repo)
 
     assert len(parcel_repo.created) == 0
 
 
-def test_create_raises_validation_failed_on_bad_data():
-    shipping_repo, hub_repo, parcel_repo, tracking_repo = _repos([_make_hub()])
-    bad_request = _make_request(external_order_id="")  # thiếu order_id
+def test_process_raises_not_found():
+    shipping_repo, hub_repo, parcel_repo, tracking_repo = _make_repos([_make_hub()])
 
-    with pytest.raises(ValidationFailed):
-        create_shipping_request(bad_request, shipping_repo, hub_repo, parcel_repo, tracking_repo)
-
-
-def test_create_validation_failed_does_not_save():
-    shipping_repo, hub_repo, parcel_repo, tracking_repo = _repos([_make_hub()])
-    bad_request = _make_request(external_order_id="")
-
-    with pytest.raises(ValidationFailed):
-        create_shipping_request(bad_request, shipping_repo, hub_repo, parcel_repo, tracking_repo)
-
-    assert len(shipping_repo._store) == 0
+    with pytest.raises(ShippingRequestNotFound):
+        process_shipping_request(uuid4(), shipping_repo, hub_repo, parcel_repo, tracking_repo)
 
 
 # ── get_shipping_request ──────────────────────────────────────────────────────
