@@ -1,4 +1,4 @@
-# Smart Delivery Routing
+# Parcel Delivery Management System
 
 ![CI](https://github.com/phvghuy/smart-delivery-routing/actions/workflows/ci.yml/badge.svg)
 

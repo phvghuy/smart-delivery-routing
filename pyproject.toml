@@ -36,6 +36,7 @@ markers = ["integration: tests requiring external services (Supabase, Redis, OSR
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",
+    "locust>=2.44.4",
     "mypy>=1.20.2",
     "pytest>=9.0.3",
     "pytest-cov>=7.1.0",
