@@ -1,5 +1,6 @@
 {
   "pythonVersion": "3.11",
-  "include": ["src"],
-  "pythonPath": "src"
+  "include": ["src", "tests"],
+  "pythonPath": "src",
+  "extraPaths": [".", "src"]
 }
